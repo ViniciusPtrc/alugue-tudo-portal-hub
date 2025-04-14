@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Header } from "@/components/header";
 import { 
@@ -116,9 +117,9 @@ export default function UsersPage() {
         return;
       }
 
-      // Fetch the users using RPC instead of direct table access
+      // Fetch the users using RPC
       const { data, error } = await supabase
-        .rpc('get_all_users')
+        .rpc('get_all_users');
         
       if (error) {
         console.error("Error fetching users:", error);

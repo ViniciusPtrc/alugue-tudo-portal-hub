@@ -51,6 +51,35 @@ export type Database = {
         }
         Returns: string
       }
+      delete_user: {
+        Args: { user_id: string }
+        Returns: undefined
+      }
+      get_all_users: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          created_at: string
+          email: string
+          id: string
+          name: string
+          role: string[]
+          status: string
+        }[]
+      }
+      update_user: {
+        Args: {
+          user_id: string
+          user_name: string
+          user_email: string
+          user_role: string[]
+          user_status: string
+        }
+        Returns: undefined
+      }
+      update_user_password: {
+        Args: { user_id: string; new_password: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
