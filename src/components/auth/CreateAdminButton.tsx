@@ -1,3 +1,4 @@
+
 import { UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CardFooter } from "@/components/ui/card";
@@ -43,7 +44,26 @@ export function CreateAdminButton({
       
       console.log("Criando usuário admin manualmente...");
       
-      // 2. Criar o admin
+      // 2. Usar função RPC para criar o usuário sem afetar a sessão atual
+      const { data: newAdmin, error: rpcError } = await supabase.rpc('create_new_auth_user', {
+        email: 'admin@aluguetudo.com',
+        password: 'admin123',
+        name: 'Administrador',
+        role: ['admin'],
+        status: 'ativo'
+      });
+      
+      if (!rpcError && newAdmin) {
+        console.log("Admin criado com sucesso via create_new_auth_user", newAdmin);
+        toast.success("Administrador criado com sucesso!");
+        return;
+      }
+      
+      if (rpcError) {
+        console.error("Erro ao criar admin via create_new_auth_user:", rpcError);
+      }
+      
+      // 3. Criar o admin com opção de não fazer login automaticamente
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: 'admin@aluguetudo.com',
         password: 'admin123',
@@ -52,7 +72,9 @@ export function CreateAdminButton({
             name: 'Administrador',
             role: ['admin'],
             status: 'ativo'
-          }
+          },
+          // Importante: isso evita o login automático após o cadastro
+          emailRedirectTo: window.location.origin + '/login'
         }
       });
 
@@ -74,7 +96,7 @@ export function CreateAdminButton({
       
       let profileCreated = false;
       
-      // 3. Inserir diretamente na tabela users com a nova política RLS
+      // 4. Inserir diretamente na tabela users com a nova política RLS
       try {
         console.log("Tentando inserir admin com nova política RLS");
         const { error: insertError } = await supabase
@@ -97,7 +119,7 @@ export function CreateAdminButton({
         console.error("Exceção ao inserir admin diretamente:", insertError);
       }
       
-      // 4. Tentar função create_user_profile atualizada (sem verificação de admin)
+      // 5. Tentar função create_user_profile atualizada (sem verificação de admin)
       if (!profileCreated) {
         try {
           console.log("Tentando criar admin via create_user_profile atualizada");
@@ -120,29 +142,6 @@ export function CreateAdminButton({
         }
       }
       
-      // 5. Tentar função create_new_auth_user
-      if (!profileCreated) {
-        try {
-          console.log("Tentando criar admin via create_new_auth_user");
-          const { error: newUserError } = await supabase.rpc('create_new_auth_user', {
-            email: 'admin@aluguetudo.com',
-            password: 'admin123',
-            name: 'Administrador',
-            role: ['admin'],
-            status: 'ativo'
-          });
-          
-          if (!newUserError) {
-            console.log("Admin criado com sucesso via create_new_auth_user");
-            profileCreated = true;
-          } else {
-            console.error("Erro ao criar admin via create_new_auth_user:", newUserError);
-          }
-        } catch (createNewError) {
-          console.error("Exceção ao criar admin via create_new_auth_user:", createNewError);
-        }
-      }
-      
       // 6. Verificar uma última vez se o perfil foi criado
       if (!profileCreated) {
         const { data: checkProfile } = await supabase
@@ -161,6 +160,16 @@ export function CreateAdminButton({
         toast.success("Administrador criado com sucesso!");
       } else {
         toast.error("Admin foi criado parcialmente. Contate o suporte.");
+      }
+      
+      // 7. Verificar se a sessão atual foi perdida e redirecionar para login
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      if (!currentSession) {
+        console.warn("Sessão perdida após criar admin. Redirecionando para login.");
+        // Aguardar um momento para que o toast seja exibido antes do redirecionamento
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 2000);
       }
       
     } catch (error: any) {
