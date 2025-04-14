@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
@@ -200,7 +199,7 @@ export default function RhPage() {
                         <SelectValue placeholder="Todos os setores" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Todos os setores</SelectItem>
+                        <SelectItem value="all">Todos os setores</SelectItem>
                         <SelectItem value="RH">RH</SelectItem>
                         <SelectItem value="Comercial">Comercial</SelectItem>
                         <SelectItem value="Financeiro">Financeiro</SelectItem>

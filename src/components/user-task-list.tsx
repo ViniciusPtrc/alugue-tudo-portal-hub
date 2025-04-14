@@ -144,7 +144,7 @@ export function UserTaskList({
                 <SelectValue placeholder="Setor" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos</SelectItem>
+                <SelectItem value="all">Todos</SelectItem>
                 {sectors.map((sector) => (
                   <SelectItem key={sector} value={sector}>
                     {sector}
