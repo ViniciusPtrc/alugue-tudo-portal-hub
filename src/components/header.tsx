@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useAuth } from "@/App";
+import { useContext } from "react";
 
 interface HeaderProps {
   user?: {
@@ -26,10 +27,21 @@ interface HeaderProps {
     image?: string;
     role?: string | string[];
   };
+  // Add an optional signOut function for cases where useAuth might not be available
+  onSignOut?: () => void;
 }
 
-export function Header({ user }: HeaderProps) {
-  const { signOut } = useAuth();
+export function Header({ user, onSignOut }: HeaderProps) {
+  let signOutFn = onSignOut;
+  
+  try {
+    // Try to get the signOut function from useAuth, but don't crash if it's not available
+    const authContext = useAuth();
+    signOutFn = authContext?.signOut;
+  } catch (error) {
+    // If useAuth is not available, we'll use the onSignOut prop if provided
+    console.warn("AuthContext not available in Header. Using fallback if provided.");
+  }
   
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6">
@@ -71,10 +83,12 @@ export function Header({ user }: HeaderProps) {
                 <UserIcon className="mr-2 h-4 w-4" />
                 <span>Perfil</span>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={signOut}>
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Sair</span>
-              </DropdownMenuItem>
+              {signOutFn && (
+                <DropdownMenuItem onClick={signOutFn}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Sair</span>
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
