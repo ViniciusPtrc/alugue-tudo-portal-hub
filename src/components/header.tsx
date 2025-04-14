@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { useAuth } from "@/App";
 
 interface HeaderProps {
   user?: {
@@ -25,10 +26,11 @@ interface HeaderProps {
     image?: string;
     role?: string | string[];
   };
-  onSignOut?: () => void;
 }
 
-export function Header({ user, onSignOut }: HeaderProps) {
+export function Header({ user }: HeaderProps) {
+  const { signOut } = useAuth();
+  
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6">
       <div className="md:hidden">
@@ -69,7 +71,7 @@ export function Header({ user, onSignOut }: HeaderProps) {
                 <UserIcon className="mr-2 h-4 w-4" />
                 <span>Perfil</span>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={onSignOut}>
+              <DropdownMenuItem onClick={signOut}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Sair</span>
               </DropdownMenuItem>

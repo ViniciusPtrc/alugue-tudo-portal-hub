@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, LogIn } from "lucide-react";
@@ -8,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Logo } from "@/components/logo";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/App";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -16,28 +16,21 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { signIn } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Aqui você faria a autenticação real com o Supabase
     try {
-      // Simulando um atraso de rede
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Aqui será integrado o login com Supabase
-      console.log("Login com:", email, password);
+      await signIn(email, password);
       
       toast({
         title: "Login realizado com sucesso!",
         description: "Você será redirecionado para o dashboard.",
       });
       
-      // Simulando redirecionamento após login
-      setTimeout(() => {
-        navigate("/");
-      }, 1000);
+      navigate("/");
     } catch (error) {
       console.error("Erro de login:", error);
       toast({

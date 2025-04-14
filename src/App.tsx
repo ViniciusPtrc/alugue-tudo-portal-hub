@@ -3,8 +3,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { useState, createContext, useContext } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { useState, createContext, useContext, useEffect } from "react";
 
 // Páginas
 import Index from "./pages/Index";
@@ -74,7 +74,11 @@ const ProtectedRoute = ({ element, requiredRoles }: ProtectedRouteProps) => {
 
 const App = () => {
   // Estado para simular autenticação (será substituído pelo Supabase)
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    // Verifica se existe um usuário salvo no localStorage
+    const savedUser = localStorage.getItem('user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
 
   // Simulação de login (será substituído pela autenticação do Supabase)
   const signIn = async (email: string, password: string) => {
@@ -87,6 +91,8 @@ const App = () => {
         role: ["admin", "rh", "financeiro", "comercial", "operacional"],
       };
       setUser(mockUser);
+      // Salva o usuário no localStorage para persistir o login
+      localStorage.setItem('user', JSON.stringify(mockUser));
     } else {
       throw new Error("Credenciais inválidas");
     }
@@ -95,6 +101,8 @@ const App = () => {
   // Simulação de logout
   const signOut = () => {
     setUser(null);
+    // Remove o usuário do localStorage ao fazer logout
+    localStorage.removeItem('user');
   };
 
   return (
