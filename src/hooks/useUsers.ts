@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { User } from '@/types/user';
 import { supabase } from '@/integrations/supabase/client';
@@ -59,7 +60,16 @@ export const useUsers = () => {
       }
 
       if (data.user) {
-        const { error: profileError } = await supabase.rpc('create_user_profile', {
+        console.log("Usuário criado com sucesso, ID:", data.user.id);
+        console.log("Tentando criar perfil com dados:", {
+          user_id: data.user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          status: user.status || 'ativo'
+        });
+        
+        const { error: profileError, data: profileData } = await supabase.rpc('create_user_profile', {
           user_id: data.user.id,
           name: user.name,
           email: user.email,
@@ -72,6 +82,12 @@ export const useUsers = () => {
           toast.error("Erro ao criar perfil: " + profileError.message);
           return false;
         }
+        
+        console.log("Perfil criado com sucesso:", profileData);
+      } else {
+        console.error("Usuário criado, mas objeto user não foi retornado");
+        toast.error("Erro ao criar perfil de usuário: dados incompletos");
+        return false;
       }
 
       toast.success("Usuário adicionado com sucesso!");
