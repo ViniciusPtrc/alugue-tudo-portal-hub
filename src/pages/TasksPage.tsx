@@ -106,6 +106,8 @@ export default function TasksPage() {
     }
 
     const taskId = crypto.randomUUID();
+    const currentDate = new Date().toISOString().split("T")[0];
+    
     const taskToAdd: Task = {
       id: taskId,
       title: newTask.title || "",
@@ -113,7 +115,7 @@ export default function TasksPage() {
       status: newTask.status as TaskStatus || "pendente",
       priority: newTask.priority as "baixa" | "media" | "alta",
       created_by: currentUser.email,
-      due_date: newTask.due_date || new Date().toISOString().split("T")[0],
+      due_date: newTask.due_date || currentDate,
     };
 
     setTasks([taskToAdd, ...tasks]);
