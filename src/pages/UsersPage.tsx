@@ -11,6 +11,7 @@ import { UserDialog } from "@/components/users/UserDialog";
 import { DeleteConfirmDialog } from "@/components/users/DeleteConfirmDialog";
 import { UserTable } from "@/components/users/UserTable";
 import { UserSearch } from "@/components/users/UserSearch";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function UsersPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -28,13 +29,35 @@ export default function UsersPage() {
   const { users, isLoading, fetchUsers, createUser, updateUser, deleteUser } = useUsers();
   
   useEffect(() => {
-    // Check if user has admin role
+    // Log user metadata and permissions
+    console.log("User metadata:", user?.user_metadata);
     const userRoles = user?.user_metadata?.role || [];
-    if (!userRoles.includes('admin')) {
+    console.log("User roles:", userRoles);
+    const isAdmin = userRoles.includes('admin');
+    console.log("Is admin:", isAdmin);
+    
+    // Check if user has admin role
+    if (!isAdmin) {
       toast.error("Permissão negada para acessar usuários");
       return;
     }
     
+    // Verificar estado atual do banco de dados
+    const checkDatabaseState = async () => {
+      try {
+        // Verificar se já existem usuários no sistema
+        const { data: dbUsers, error: userError } = await supabase.from('users').select('*');
+        if (userError) {
+          console.error("Erro ao verificar usuários:", userError);
+        } else {
+          console.log(`Encontrados ${dbUsers?.length || 0} usuários na tabela public.users`);
+        }
+      } catch (e) {
+        console.error("Erro ao verificar estado do banco:", e);
+      }
+    };
+    
+    checkDatabaseState();
     fetchUsers();
   }, []);
 
@@ -84,6 +107,8 @@ export default function UsersPage() {
     
     if (success) {
       setOpenUserDialog(false);
+      // Atualizar a lista após a criação/atualização
+      await fetchUsers();
     }
   };
 
@@ -98,6 +123,8 @@ export default function UsersPage() {
       if (success) {
         setOpenDeleteDialog(false);
         setUserToDelete(null);
+        // Atualizar a lista após a exclusão
+        await fetchUsers();
       }
     }
   };

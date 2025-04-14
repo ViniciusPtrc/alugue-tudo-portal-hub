@@ -2,6 +2,9 @@
 import { UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CardFooter } from "@/components/ui/card";
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface CreateAdminButtonProps {
   onClick: () => void;
@@ -14,6 +17,114 @@ export function CreateAdminButton({
   isCreating, 
   isDisabled = false 
 }: CreateAdminButtonProps) {
+  const [isManualCreating, setIsManualCreating] = useState(false);
+  
+  // Função para criar admin manualmente se o botão principal não funcionar
+  const createAdminManually = async () => {
+    try {
+      setIsManualCreating(true);
+      
+      // 1. Verificar se já existe um admin
+      const { data: existingUsers, error: checkError } = await supabase
+        .from('users')
+        .select('*')
+        .contains('role', ['admin'])
+        .limit(1);
+        
+      if (checkError) {
+        console.error("Erro ao verificar admins existentes:", checkError);
+        toast.error("Erro ao verificar administradores existentes");
+        return;
+      }
+        
+      if (existingUsers && existingUsers.length > 0) {
+        toast.warning("Já existe pelo menos um administrador no sistema");
+        return;
+      }
+      
+      // 2. Criar o admin
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: 'admin@aluguetudo.com',
+        password: 'admin123',
+        options: {
+          data: {
+            name: 'Administrador',
+            role: ['admin'],
+            status: 'ativo'
+          }
+        }
+      });
+
+      if (signUpError) {
+        console.error("Erro ao criar admin:", signUpError);
+        toast.error("Erro ao criar admin: " + signUpError.message);
+        return;
+      }
+      
+      if (!data.user) {
+        toast.error("Falha ao criar admin: resposta incompleta");
+        return;
+      }
+      
+      // 3. Criar perfil de admin (tentar todas as abordagens)
+      // 3.1 Tentar função create_new_auth_user
+      try {
+        const { error: newUserError } = await supabase.rpc('create_new_auth_user', {
+          email: 'admin@aluguetudo.com',
+          password: 'admin123',
+          name: 'Administrador',
+          role: ['admin'],
+          status: 'ativo'
+        });
+        
+        if (!newUserError) {
+          toast.success("Administrador criado com sucesso!");
+          return;
+        }
+      } catch (e) {
+        console.error("Erro ao usar create_new_auth_user:", e);
+      }
+      
+      // 3.2 Tentar função create_user_profile
+      const { error: profileError } = await supabase.rpc('create_user_profile', {
+        user_id: data.user.id,
+        name: 'Administrador',
+        email: 'admin@aluguetudo.com',
+        role: ['admin'],
+        status: 'ativo'
+      });
+      
+      if (profileError) {
+        console.error("Erro ao criar perfil via RPC:", profileError);
+        
+        // 3.3 Tentar inserção direta
+        const { error: insertError } = await supabase
+          .from('users')
+          .insert({
+            id: data.user.id,
+            name: 'Administrador',
+            email: 'admin@aluguetudo.com',
+            role: ['admin'],
+            status: 'ativo'
+          });
+          
+        if (insertError) {
+          console.error("Erro ao inserir diretamente na tabela users:", insertError);
+          toast.error("Admin foi criado parcialmente. Contate o suporte.");
+          return;
+        }
+      }
+      
+      toast.success("Administrador criado com sucesso!");
+      
+    } catch (error: any) {
+      console.error("Exceção ao criar admin:", error);
+      toast.error("Erro ao criar admin: " + error.message);
+    } finally {
+      setIsManualCreating(false);
+    }
+  };
+  
   return (
     <CardFooter className="flex flex-col space-y-4">
       <div className="text-sm text-muted-foreground text-center w-full">
@@ -24,7 +135,7 @@ export function CreateAdminButton({
         variant="outline"
         className="w-full"
         onClick={onClick}
-        disabled={isCreating || isDisabled}
+        disabled={isCreating || isDisabled || isManualCreating}
       >
         {isCreating ? (
           <span className="flex items-center">
@@ -56,6 +167,22 @@ export function CreateAdminButton({
           </>
         )}
       </Button>
+      
+      {isManualCreating && (
+        <div className="text-center text-sm text-muted-foreground">
+          Criando administrador manualmente...
+        </div>
+      )}
+      
+      <div className="text-xs text-muted-foreground text-center">
+        <button 
+          onClick={createAdminManually} 
+          className="text-primary hover:underline"
+          disabled={isCreating || isDisabled || isManualCreating}
+        >
+          Criar admin manualmente
+        </button> (use apenas se o método normal falhar)
+      </div>
     </CardFooter>
   );
 }
