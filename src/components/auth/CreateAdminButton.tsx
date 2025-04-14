@@ -66,38 +66,9 @@ export function CreateAdminButton({
         return;
       }
       
-      // 3. Criar perfil de admin (tentar todas as abordagens)
-      // 3.1 Tentar função create_new_auth_user
+      // 3. Inserir diretamente na tabela users (primeira tentativa)
       try {
-        const { error: newUserError } = await supabase.rpc('create_new_auth_user', {
-          email: 'admin@aluguetudo.com',
-          password: 'admin123',
-          name: 'Administrador',
-          role: ['admin'],
-          status: 'ativo'
-        });
-        
-        if (!newUserError) {
-          toast.success("Administrador criado com sucesso!");
-          return;
-        }
-      } catch (e) {
-        console.error("Erro ao usar create_new_auth_user:", e);
-      }
-      
-      // 3.2 Tentar função create_user_profile
-      const { error: profileError } = await supabase.rpc('create_user_profile', {
-        user_id: data.user.id,
-        name: 'Administrador',
-        email: 'admin@aluguetudo.com',
-        role: ['admin'],
-        status: 'ativo'
-      });
-      
-      if (profileError) {
-        console.error("Erro ao criar perfil via RPC:", profileError);
-        
-        // 3.3 Tentar inserção direta
+        console.log("Tentando inserir admin diretamente na tabela users");
         const { error: insertError } = await supabase
           .from('users')
           .insert({
@@ -108,14 +79,57 @@ export function CreateAdminButton({
             status: 'ativo'
           });
           
-        if (insertError) {
-          console.error("Erro ao inserir diretamente na tabela users:", insertError);
-          toast.error("Admin foi criado parcialmente. Contate o suporte.");
+        if (!insertError) {
+          console.log("Admin criado com sucesso via insert direto");
+          toast.success("Administrador criado com sucesso!");
           return;
         }
+        console.error("Erro ao inserir diretamente na tabela users:", insertError);
+      } catch (insertError) {
+        console.error("Exceção ao inserir admin diretamente:", insertError);
       }
       
-      toast.success("Administrador criado com sucesso!");
+      // 4. Tentar função create_user_profile (segunda tentativa)
+      try {
+        const { error: profileError } = await supabase.rpc('create_user_profile', {
+          user_id: data.user.id,
+          name: 'Administrador',
+          email: 'admin@aluguetudo.com',
+          role: ['admin'],
+          status: 'ativo'
+        });
+        
+        if (!profileError) {
+          console.log("Admin criado com sucesso via RPC");
+          toast.success("Administrador criado com sucesso!");
+          return;
+        }
+        console.error("Erro ao criar perfil via RPC:", profileError);
+      } catch (profileError) {
+        console.error("Exceção ao criar perfil de admin via RPC:", profileError);
+      }
+      
+      // 5. Tentar função create_new_auth_user (terceira tentativa)
+      try {
+        const { error: newUserError } = await supabase.rpc('create_new_auth_user', {
+          email: 'admin@aluguetudo.com',
+          password: 'admin123',
+          name: 'Administrador',
+          role: ['admin'],
+          status: 'ativo'
+        });
+        
+        if (!newUserError) {
+          console.log("Admin criado com sucesso via create_new_auth_user");
+          toast.success("Administrador criado com sucesso!");
+          return;
+        }
+        console.error("Erro ao criar admin via create_new_auth_user:", newUserError);
+      } catch (createNewError) {
+        console.error("Exceção ao criar admin via create_new_auth_user:", createNewError);
+      }
+      
+      toast.error("Admin foi criado parcialmente. Contate o suporte.");
       
     } catch (error: any) {
       console.error("Exceção ao criar admin:", error);

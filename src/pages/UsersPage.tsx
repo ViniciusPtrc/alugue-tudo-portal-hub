@@ -51,6 +51,39 @@ export default function UsersPage() {
           console.error("Erro ao verificar usuários:", userError);
         } else {
           console.log(`Encontrados ${dbUsers?.length || 0} usuários na tabela public.users`);
+          
+          // Verificar permissões do usuário atual
+          const { data: { user: currentUser } } = await supabase.auth.getUser();
+          if (currentUser) {
+            console.log("Usuário atual:", currentUser);
+            console.log("ID do usuário atual:", currentUser.id);
+            
+            // Testar inserção direta na tabela users para diagnostico
+            try {
+              const { error: testInsertError } = await supabase
+                .from('users')
+                .insert({
+                  id: '00000000-0000-0000-0000-000000000000',
+                  name: 'Test User (será removido)',
+                  email: 'test@test.com',
+                  role: ['test'],
+                  status: 'inativo'
+                });
+              
+              if (testInsertError) {
+                console.error("Erro no teste de inserção direta:", testInsertError);
+              } else {
+                console.log("Teste de inserção direta bem-sucedido");
+                // Remover o usuário de teste
+                await supabase
+                  .from('users')
+                  .delete()
+                  .eq('id', '00000000-0000-0000-0000-000000000000');
+              }
+            } catch (e) {
+              console.error("Exceção no teste de inserção direta:", e);
+            }
+          }
         }
       } catch (e) {
         console.error("Erro ao verificar estado do banco:", e);
