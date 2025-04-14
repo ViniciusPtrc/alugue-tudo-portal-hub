@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Header } from "@/components/header";
 import { 
@@ -108,9 +107,8 @@ export default function UsersPage() {
       // Logging user info for debugging
       console.info("User metadata:", user?.user_metadata);
       console.info("User roles:", user?.user_metadata?.role);
-      console.info("Is admin:", user?.user_metadata?.role?.includes('admin'));
       
-      // Check if user has admin role first
+      // Check if user has admin role first - FIXED: Using 'admin' = ANY(role) instead of role ? 'admin'
       const userRoles = user?.user_metadata?.role || [];
       if (!userRoles.includes('admin')) {
         toast.error("Permissão negada para acessar usuários");
@@ -207,7 +205,7 @@ export default function UsersPage() {
 
         toast.success("Usuário adicionado com sucesso!");
       } else {
-        // For updating an existing user - remove password from updates as it's handled differently
+        // For updating an existing user
         const { error } = await supabase.rpc('update_user', {
           user_id: userToEdit.id,
           user_name: userToEdit.name,
