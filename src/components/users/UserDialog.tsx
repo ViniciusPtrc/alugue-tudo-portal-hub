@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { User, availableRoles } from "@/types/user";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -21,6 +21,14 @@ export function UserDialog({ open, onOpenChange, userToEdit, isLoading, onSave }
   const [selectedRoles, setSelectedRoles] = useState<string[]>(userToEdit.role || []);
   const [showPassword, setShowPassword] = useState(false);
 
+  // Sincroniza o estado local quando as props mudam
+  useEffect(() => {
+    if (open) {
+      setUser(userToEdit);
+      setSelectedRoles(userToEdit.role || []);
+    }
+  }, [userToEdit, open]);
+
   const toggleRole = (roleId: string) => {
     setSelectedRoles((current) =>
       current.includes(roleId)
@@ -37,21 +45,15 @@ export function UserDialog({ open, onOpenChange, userToEdit, isLoading, onSave }
     onSave({ ...user, role: selectedRoles }, selectedRoles);
   };
 
-  // Update local state when props change
-  if (JSON.stringify(userToEdit) !== JSON.stringify(user)) {
-    setUser(userToEdit);
-    setSelectedRoles(userToEdit.role || []);
-  }
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>
-            {userToEdit.id ? "Editar Usuário" : "Novo Usuário"}
+            {user.id ? "Editar Usuário" : "Novo Usuário"}
           </DialogTitle>
           <DialogDescription>
-            {userToEdit.id 
+            {user.id 
               ? "Edite as informações do usuário existente." 
               : "Preencha as informações para criar um novo usuário."}
           </DialogDescription>
@@ -93,7 +95,7 @@ export function UserDialog({ open, onOpenChange, userToEdit, isLoading, onSave }
                 value={user.password || ""}
                 onChange={(e) => setUser({ ...user, password: e.target.value })}
                 className="pr-10"
-                placeholder={userToEdit.id ? "Mantenha vazio para não alterar" : "Digite a senha"}
+                placeholder={user.id ? "Mantenha vazio para não alterar" : "Digite a senha"}
                 disabled={isLoading}
               />
               <Button
