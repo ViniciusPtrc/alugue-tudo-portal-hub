@@ -9,13 +9,48 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      users: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          name: string
+          role: string[]
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          name: string
+          role?: string[]
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          role?: string[]
+          status?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      create_new_auth_user: {
+        Args: {
+          email: string
+          password: string
+          name: string
+          role: string[]
+          status: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

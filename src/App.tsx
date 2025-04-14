@@ -5,6 +5,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { useState, createContext, useContext, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { User, Session } from "@supabase/supabase-js";
 
 // Páginas
 import Index from "./pages/Index";
@@ -19,57 +21,12 @@ import { AppSidebarWrapper } from "./components/app-sidebar";
 
 const queryClient = new QueryClient();
 
-// Definindo tipos para autenticação
-interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: string[];
-}
-
-// Usuários do sistema
-const systemUsers = [
-  {
-    id: "1",
-    email: "admin@aluguetudo.com",
-    password: "admin123",
-    name: "João Silva",
-    role: ["admin", "rh", "financeiro", "comercial", "operacional"],
-  },
-  {
-    id: "2",
-    email: "rh@aluguetudo.com",
-    password: "rh123",
-    name: "Maria Souza",
-    role: ["rh"],
-  },
-  {
-    id: "3",
-    email: "financeiro@aluguetudo.com",
-    password: "financeiro123",
-    name: "Pedro Santos",
-    role: ["financeiro"],
-  },
-  {
-    id: "4",
-    email: "comercial@aluguetudo.com",
-    password: "comercial123",
-    name: "Ana Oliveira",
-    role: ["comercial"],
-  },
-  {
-    id: "5",
-    email: "operacional@aluguetudo.com",
-    password: "operacional123",
-    name: "Carlos Ferreira",
-    role: ["operacional"],
-  },
-];
-
+// Interface para o contexto de autenticação
 interface AuthContextType {
   user: User | null;
+  session: Session | null;
   signIn: (email: string, password: string) => Promise<void>;
-  signOut: () => void;
+  signOut: () => Promise<void>;
 }
 
 // Criando contexto de autenticação
@@ -91,6 +48,7 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute = ({ element, requiredRoles }: ProtectedRouteProps) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   // Se não estiver autenticado, redireciona para login
   if (!user) {
@@ -99,7 +57,8 @@ const ProtectedRoute = ({ element, requiredRoles }: ProtectedRouteProps) => {
 
   // Se requerer roles específicas, verifica se o usuário tem permissão
   if (requiredRoles && requiredRoles.length > 0) {
-    const hasRequiredRole = user.role.some(role => 
+    const userRoles = user.user_metadata?.role || [];
+    const hasRequiredRole = userRoles.some(role => 
       requiredRoles.includes(role) || role === "admin"
     );
     
@@ -113,38 +72,55 @@ const ProtectedRoute = ({ element, requiredRoles }: ProtectedRouteProps) => {
 };
 
 const App = () => {
-  // Estado para simular autenticação
-  const [user, setUser] = useState<User | null>(() => {
-    // Verifica se existe um usuário salvo no localStorage
-    const savedUser = localStorage.getItem('user');
-    return savedUser ? JSON.parse(savedUser) : null;
-  });
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
 
-  // Login com verificação de credenciais
+  useEffect(() => {
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, currentSession) => {
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
+      }
+    );
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      setSession(currentSession);
+      setUser(currentSession?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Login com Supabase
   const signIn = async (email: string, password: string) => {
-    // Verifica as credenciais com os usuários do sistema
-    const foundUser = systemUsers.find(u => u.email === email && u.password === password);
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
     
-    if (foundUser) {
-      const { password, ...userWithoutPassword } = foundUser;
-      setUser(userWithoutPassword);
-      // Salva o usuário no localStorage para persistir o login
-      localStorage.setItem('user', JSON.stringify(userWithoutPassword));
-    } else {
-      throw new Error("Credenciais inválidas");
+    if (error) {
+      throw error;
     }
+    
+    setSession(data.session);
+    setUser(data.user);
   };
 
-  // Logout
-  const signOut = () => {
+  // Logout com Supabase
+  const signOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      throw error;
+    }
     setUser(null);
-    // Remove o usuário do localStorage ao fazer logout
-    localStorage.removeItem('user');
+    setSession(null);
   };
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthContext.Provider value={{ user, signIn, signOut }}>
+      <AuthContext.Provider value={{ user, session, signIn, signOut }}>
         <TooltipProvider>
           <Toaster />
           <Sonner />

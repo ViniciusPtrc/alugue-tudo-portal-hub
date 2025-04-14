@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, LogIn } from "lucide-react";
@@ -8,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Logo } from "@/components/logo";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/App";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -23,6 +25,17 @@ export default function Login() {
     setIsLoading(true);
 
     try {
+      // Sign in with Supabase Auth
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // Use the signIn method from context to update the application state
       await signIn(email, password);
       
       toast({
@@ -31,11 +44,11 @@ export default function Login() {
       });
       
       navigate("/");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro de login:", error);
       toast({
         title: "Erro ao fazer login",
-        description: "Verifique suas credenciais e tente novamente.",
+        description: error.message || "Verifique suas credenciais e tente novamente.",
         variant: "destructive",
       });
     } finally {

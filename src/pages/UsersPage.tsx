@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Header } from "@/components/header";
 import { 
   AlertDialog,
@@ -59,66 +59,19 @@ import {
   Users
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/App";
 
 // Tipo para usuários
 interface User {
   id: string;
   name: string;
   email: string;
-  password: string;
+  password?: string;
   role: string[];
   status: "ativo" | "inativo";
   created_at: string;
 }
-
-// Usuarios de exemplo
-const mockUsers: User[] = [
-  {
-    id: "1",
-    name: "João Silva",
-    email: "joao.silva@aluguetudo.com",
-    password: "senha123",
-    role: ["admin"],
-    status: "ativo",
-    created_at: "2025-01-15",
-  },
-  {
-    id: "2",
-    name: "Maria Souza",
-    email: "maria.souza@aluguetudo.com",
-    password: "senha456",
-    role: ["rh"],
-    status: "ativo",
-    created_at: "2025-02-10",
-  },
-  {
-    id: "3",
-    name: "Pedro Santos",
-    email: "pedro.santos@aluguetudo.com",
-    password: "senha789",
-    role: ["financeiro"],
-    status: "ativo",
-    created_at: "2025-02-25",
-  },
-  {
-    id: "4",
-    name: "Ana Oliveira",
-    email: "ana.oliveira@aluguetudo.com",
-    password: "senha321",
-    role: ["comercial"],
-    status: "inativo",
-    created_at: "2025-03-05",
-  },
-  {
-    id: "5",
-    name: "Carlos Ferreira",
-    email: "carlos.ferreira@aluguetudo.com",
-    password: "senha654",
-    role: ["operacional"],
-    status: "ativo",
-    created_at: "2025-03-20",
-  },
-];
 
 // Possiveis papéis/funções
 const availableRoles = [
@@ -130,7 +83,7 @@ const availableRoles = [
 ];
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<User[]>(mockUsers);
+  const [users, setUsers] = useState<User[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [openUserDialog, setOpenUserDialog] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
@@ -144,6 +97,37 @@ export default function UsersPage() {
   });
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const { user } = useAuth();
+  
+  const fetchUsers = async () => {
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error("Error fetching users:", error);
+        toast.error("Erro ao carregar usuários");
+        return;
+      }
+
+      if (data) {
+        setUsers(data as User[]);
+      }
+    } catch (error) {
+      console.error("Exception fetching users:", error);
+      toast.error("Erro ao carregar usuários");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
   const filteredUsers = users.filter((user) => {
     return (
@@ -166,19 +150,19 @@ export default function UsersPage() {
   };
 
   const handleEditUser = (user: User) => {
-    setUserToEdit({...user, password: "••••••••"}); // Mascarando a senha por segurança
+    setUserToEdit({ ...user, password: "" });
     setSelectedRoles(user.role);
     setShowPassword(false);
     setOpenUserDialog(true);
   };
 
-  const handleSaveUser = () => {
+  const handleSaveUser = async () => {
     if (!userToEdit.name || !userToEdit.email) {
       toast.error("Nome e e-mail são obrigatórios");
       return;
     }
 
-    if (!userToEdit.id && (!userToEdit.password || userToEdit.password === "••••••••")) {
+    if (!userToEdit.id && (!userToEdit.password || userToEdit.password === "")) {
       toast.error("Senha é obrigatória para novos usuários");
       return;
     }
@@ -188,38 +172,64 @@ export default function UsersPage() {
       return;
     }
 
-    // Para um novo usuário
-    if (!userToEdit.id) {
-      const newUser: User = {
-        id: crypto.randomUUID(),
-        name: userToEdit.name,
-        email: userToEdit.email,
-        password: userToEdit.password || "",
-        role: selectedRoles,
-        status: userToEdit.status as "ativo" | "inativo",
-        created_at: new Date().toISOString().split("T")[0],
-      };
-      setUsers([...users, newUser]);
-      toast.success("Usuário adicionado com sucesso!");
-    } else {
-      // Para edição de usuário existente
-      setUsers(
-        users.map((user) =>
-          user.id === userToEdit.id
-            ? {
-                ...user,
-                name: userToEdit.name || user.name,
-                email: userToEdit.email || user.email,
-                password: userToEdit.password === "••••••••" ? user.password : (userToEdit.password || user.password),
-                role: selectedRoles,
-                status: userToEdit.status as "ativo" | "inativo" || user.status,
-              }
-            : user
-        )
-      );
-      toast.success("Usuário atualizado com sucesso!");
+    try {
+      setIsLoading(true);
+      
+      // For a new user
+      if (!userToEdit.id) {
+        // Call the function to create a new user in auth and public schema
+        const { data, error } = await supabase.rpc('create_new_auth_user', {
+          email: userToEdit.email,
+          password: userToEdit.password,
+          name: userToEdit.name,
+          role: selectedRoles,
+          status: userToEdit.status
+        });
+
+        if (error) {
+          console.error("Error creating user:", error);
+          toast.error("Erro ao criar usuário: " + error.message);
+          return;
+        }
+
+        toast.success("Usuário adicionado com sucesso!");
+      } else {
+        // For updating an existing user
+        const updates = {
+          name: userToEdit.name,
+          email: userToEdit.email,
+          role: selectedRoles,
+          status: userToEdit.status
+        };
+
+        const { error } = await supabase
+          .from('users')
+          .update(updates)
+          .eq('id', userToEdit.id);
+
+        if (error) {
+          console.error("Error updating user:", error);
+          toast.error("Erro ao atualizar usuário: " + error.message);
+          return;
+        }
+
+        // If password was provided, update it separately in auth.users
+        if (userToEdit.password && userToEdit.password !== "") {
+          // This would require an admin function to update the password
+          toast.info("Função para atualizar senha ainda não implementada");
+        }
+
+        toast.success("Usuário atualizado com sucesso!");
+      }
+      
+      setOpenUserDialog(false);
+      fetchUsers(); // Refresh the user list
+    } catch (error: any) {
+      console.error("Exception saving user:", error);
+      toast.error("Erro ao salvar usuário: " + error.message);
+    } finally {
+      setIsLoading(false);
     }
-    setOpenUserDialog(false);
   };
 
   const confirmDeleteUser = (id: string) => {
@@ -227,12 +237,32 @@ export default function UsersPage() {
     setOpenDeleteDialog(true);
   };
 
-  const handleDeleteUser = () => {
+  const handleDeleteUser = async () => {
     if (userToDelete) {
-      setUsers(users.filter((user) => user.id !== userToDelete));
-      toast.success("Usuário excluído com sucesso!");
-      setOpenDeleteDialog(false);
-      setUserToDelete(null);
+      try {
+        setIsLoading(true);
+        
+        const { error } = await supabase
+          .from('users')
+          .delete()
+          .eq('id', userToDelete);
+
+        if (error) {
+          console.error("Error deleting user:", error);
+          toast.error("Erro ao excluir usuário: " + error.message);
+          return;
+        }
+
+        toast.success("Usuário excluído com sucesso!");
+        setOpenDeleteDialog(false);
+        setUserToDelete(null);
+        fetchUsers(); // Refresh the user list
+      } catch (error: any) {
+        console.error("Exception deleting user:", error);
+        toast.error("Erro ao excluir usuário: " + error.message);
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -250,7 +280,7 @@ export default function UsersPage() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Header user={mockUsers[0]} />
+      <Header user={user} />
       <div className="flex-1 p-4 md:p-6">
         <div className="max-w-7xl mx-auto space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -260,7 +290,7 @@ export default function UsersPage() {
                 Adicione, edite e remova usuários do sistema.
               </p>
             </div>
-            <Button onClick={handleAddUser}>
+            <Button onClick={handleAddUser} disabled={isLoading}>
               <UserPlus className="h-4 w-4 mr-2" />
               Novo Usuário
             </Button>
@@ -299,7 +329,13 @@ export default function UsersPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredUsers.length === 0 ? (
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-6">
+                        Carregando usuários...
+                      </TableCell>
+                    </TableRow>
+                  ) : filteredUsers.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center py-6">
                         Nenhum usuário encontrado.
@@ -379,6 +415,7 @@ export default function UsersPage() {
                 value={userToEdit.name || ""}
                 onChange={(e) => setUserToEdit({ ...userToEdit, name: e.target.value })}
                 className="col-span-3"
+                disabled={isLoading}
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
@@ -391,6 +428,7 @@ export default function UsersPage() {
                 value={userToEdit.email || ""}
                 onChange={(e) => setUserToEdit({ ...userToEdit, email: e.target.value })}
                 className="col-span-3"
+                disabled={isLoading}
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
@@ -405,6 +443,7 @@ export default function UsersPage() {
                   onChange={(e) => setUserToEdit({ ...userToEdit, password: e.target.value })}
                   className="pr-10"
                   placeholder={userToEdit.id ? "Mantenha vazio para não alterar" : "Digite a senha"}
+                  disabled={isLoading}
                 />
                 <Button
                   type="button"
@@ -412,6 +451,7 @@ export default function UsersPage() {
                   size="icon"
                   className="absolute right-0 top-0 h-full"
                   onClick={toggleShowPassword}
+                  disabled={isLoading}
                 >
                   {showPassword ? (
                     <EyeOff className="h-4 w-4" />
@@ -434,6 +474,7 @@ export default function UsersPage() {
                       checked={selectedRoles.includes(role.id)}
                       onChange={() => toggleRole(role.id)}
                       className="h-4 w-4"
+                      disabled={isLoading}
                     />
                     <Label htmlFor={`role-${role.id}`}>
                       {role.id === "admin" && (
@@ -454,6 +495,7 @@ export default function UsersPage() {
               <Select
                 value={userToEdit.status || "ativo"}
                 onValueChange={(value) => setUserToEdit({ ...userToEdit, status: value as "ativo" | "inativo" })}
+                disabled={isLoading}
               >
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Status do usuário" />
@@ -466,10 +508,12 @@ export default function UsersPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpenUserDialog(false)}>
+            <Button variant="outline" onClick={() => setOpenUserDialog(false)} disabled={isLoading}>
               Cancelar
             </Button>
-            <Button onClick={handleSaveUser}>{userToEdit.id ? "Atualizar" : "Adicionar"}</Button>
+            <Button onClick={handleSaveUser} disabled={isLoading}>
+              {isLoading ? "Salvando..." : userToEdit.id ? "Atualizar" : "Adicionar"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -484,9 +528,9 @@ export default function UsersPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteUser} className="bg-destructive text-destructive-foreground">
-              Excluir
+            <AlertDialogCancel disabled={isLoading}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteUser} className="bg-destructive text-destructive-foreground" disabled={isLoading}>
+              {isLoading ? "Excluindo..." : "Excluir"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
