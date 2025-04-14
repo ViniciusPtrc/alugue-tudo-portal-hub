@@ -1,4 +1,3 @@
-
 import { UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CardFooter } from "@/components/ui/card";
@@ -42,13 +41,7 @@ export function CreateAdminButton({
         return;
       }
       
-      // Verificar se existe pelo menos um usuário
-      const { count, error: countError } = await supabase
-        .from('users')
-        .select('*', { count: 'exact', head: true });
-        
-      const isFirstUser = count === 0;
-      console.log("É o primeiro usuário do sistema?", isFirstUser);
+      console.log("Criando usuário admin manualmente...");
       
       // 2. Criar o admin
       const { data, error: signUpError } = await supabase.auth.signUp({
@@ -74,61 +67,40 @@ export function CreateAdminButton({
         return;
       }
       
+      console.log("Admin criado com sucesso no auth, ID:", data.user.id);
+      
+      // Pausa para garantir que a autenticação seja processada
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       let profileCreated = false;
       
-      // 3. Inserir diretamente na tabela users com policy para primeiro usuário
-      if (isFirstUser) {
-        try {
-          console.log("Tentando inserir admin como primeiro usuário do sistema");
-          const { error: firstUserError } = await supabase
-            .from('users')
-            .insert({
-              id: data.user.id,
-              name: 'Administrador',
-              email: 'admin@aluguetudo.com',
-              role: ['admin'],
-              status: 'ativo'
-            });
-            
-          if (!firstUserError) {
-            console.log("Admin criado com sucesso como primeiro usuário");
-            profileCreated = true;
-          } else {
-            console.error("Erro ao inserir como primeiro usuário:", firstUserError);
-          }
-        } catch (firstUserError) {
-          console.error("Exceção ao inserir admin como primeiro usuário:", firstUserError);
+      // 3. Inserir diretamente na tabela users com a nova política RLS
+      try {
+        console.log("Tentando inserir admin com nova política RLS");
+        const { error: insertError } = await supabase
+          .from('users')
+          .insert({
+            id: data.user.id,
+            name: 'Administrador',
+            email: 'admin@aluguetudo.com',
+            role: ['admin'],
+            status: 'ativo'
+          });
+          
+        if (!insertError) {
+          console.log("Admin criado com sucesso via insert direto");
+          profileCreated = true;
+        } else {
+          console.error("Erro ao inserir admin diretamente:", insertError);
         }
+      } catch (insertError) {
+        console.error("Exceção ao inserir admin diretamente:", insertError);
       }
       
-      // 4. Inserir diretamente na tabela users (segunda tentativa)
+      // 4. Tentar função create_user_profile atualizada (sem verificação de admin)
       if (!profileCreated) {
         try {
-          console.log("Tentando inserir admin diretamente na tabela users");
-          const { error: insertError } = await supabase
-            .from('users')
-            .insert({
-              id: data.user.id,
-              name: 'Administrador',
-              email: 'admin@aluguetudo.com',
-              role: ['admin'],
-              status: 'ativo'
-            });
-            
-          if (!insertError) {
-            console.log("Admin criado com sucesso via insert direto");
-            profileCreated = true;
-          } else {
-            console.error("Erro ao inserir diretamente na tabela users:", insertError);
-          }
-        } catch (insertError) {
-          console.error("Exceção ao inserir admin diretamente:", insertError);
-        }
-      }
-      
-      // 5. Tentar função create_user_profile (terceira tentativa)
-      if (!profileCreated) {
-        try {
+          console.log("Tentando criar admin via create_user_profile atualizada");
           const { error: profileError } = await supabase.rpc('create_user_profile', {
             user_id: data.user.id,
             name: 'Administrador',
@@ -141,16 +113,17 @@ export function CreateAdminButton({
             console.log("Admin criado com sucesso via RPC");
             profileCreated = true;
           } else {
-            console.error("Erro ao criar perfil via RPC:", profileError);
+            console.error("Erro ao criar perfil de admin via RPC:", profileError);
           }
         } catch (profileError) {
           console.error("Exceção ao criar perfil de admin via RPC:", profileError);
         }
       }
       
-      // 6. Tentar função create_new_auth_user (quarta tentativa)
+      // 5. Tentar função create_new_auth_user
       if (!profileCreated) {
         try {
+          console.log("Tentando criar admin via create_new_auth_user");
           const { error: newUserError } = await supabase.rpc('create_new_auth_user', {
             email: 'admin@aluguetudo.com',
             password: 'admin123',
@@ -170,7 +143,7 @@ export function CreateAdminButton({
         }
       }
       
-      // 7. Verificar uma última vez se o perfil foi criado
+      // 6. Verificar uma última vez se o perfil foi criado
       if (!profileCreated) {
         const { data: checkProfile } = await supabase
           .from('users')

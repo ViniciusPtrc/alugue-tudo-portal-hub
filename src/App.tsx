@@ -87,6 +87,8 @@ const App = () => {
           .limit(1);
 
         if (existingAdmins && existingAdmins.length === 0) {
+          console.log("Nenhum admin encontrado. Criando usuário admin...");
+          
           // No admin exists, so sign up the admin user
           const { data, error } = await supabase.auth.signUp({
             email: 'admin@aluguetudo.com',
@@ -107,7 +109,41 @@ const App = () => {
           }
 
           if (data.user) {
-            toast.success('Usuário admin criado com sucesso');
+            console.log("Admin criado com sucesso no auth, inserindo perfil...");
+            
+            // Tentar inserir direto na tabela users
+            const { error: insertError } = await supabase
+              .from('users')
+              .insert({
+                id: data.user.id,
+                name: 'Administrador',
+                email: 'admin@aluguetudo.com',
+                role: ['admin'],
+                status: 'ativo'
+              });
+              
+            if (insertError) {
+              console.error('Erro ao inserir perfil de admin:', insertError);
+              
+              // Tentar via função create_user_profile
+              const { error: profileError } = await supabase.rpc('create_user_profile', {
+                user_id: data.user.id,
+                name: 'Administrador',
+                email: 'admin@aluguetudo.com',
+                role: ['admin'],
+                status: 'ativo'
+              });
+              
+              if (profileError) {
+                console.error('Erro ao criar perfil de admin via RPC:', profileError);
+              } else {
+                console.log('Perfil de admin criado com sucesso via RPC');
+                toast.success('Usuário admin criado com sucesso');
+              }
+            } else {
+              console.log('Perfil de admin inserido com sucesso');
+              toast.success('Usuário admin criado com sucesso');
+            }
           }
         }
       } catch (error) {

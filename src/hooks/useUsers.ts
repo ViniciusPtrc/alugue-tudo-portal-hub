@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { User } from '@/types/user';
 import { supabase } from '@/integrations/supabase/client';
@@ -47,14 +46,6 @@ export const useUsers = () => {
         role: user.role
       });
       
-      // Verificar se existe pelo menos um usuário no sistema (primeiro usuário)
-      const { count, error: countError } = await supabase
-        .from('users')
-        .select('*', { count: 'exact', head: true });
-      
-      const isFirstUser = count === 0;
-      console.log("É o primeiro usuário?", isFirstUser);
-      
       // 1. Cadastro do usuário no sistema de autenticação
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: user.email,
@@ -80,14 +71,17 @@ export const useUsers = () => {
         return false;
       }
 
-      console.log("Usuário criado com sucesso, ID:", data.user.id);
+      console.log("Usuário criado com sucesso no auth, ID:", data.user.id);
+      
+      // Pausa para garantir que a autenticação seja processada
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       // Vamos tentar várias abordagens diferentes para garantir que o perfil seja criado
       let profileCreated = false;
       
-      // 2. Primeira tentativa: Inserção direta
+      // 2. Primeira tentativa: Inserção direta com a nova política RLS
       try {
-        console.log("Tentando inserir diretamente na tabela users");
+        console.log("Tentando inserir diretamente na tabela users com nova política RLS");
         const { error: insertError } = await supabase
           .from('users')
           .insert({
@@ -101,50 +95,18 @@ export const useUsers = () => {
         if (insertError) {
           console.error("Erro ao inserir diretamente na tabela users:", insertError);
         } else {
-          console.log("Perfil criado com sucesso via insert direto");
+          console.log("Perfil criado com sucesso via insert direto com nova política");
           profileCreated = true;
         }
       } catch (insertError: any) {
         console.error("Exceção ao inserir diretamente:", insertError);
       }
       
-      // 3. Segunda tentativa: usar a função anônima para inserir o primeiro usuário
-      if (!profileCreated && isFirstUser) {
-        try {
-          console.log("Tentando inserir como primeiro usuário do sistema");
-          const { error: firstUserError } = await supabase
-            .from('users')
-            .insert({
-              id: data.user.id,
-              name: user.name,
-              email: user.email,
-              role: user.role,
-              status: user.status || 'ativo'
-            })
-            .select();
-            
-          if (firstUserError) {
-            console.error("Erro ao inserir como primeiro usuário:", firstUserError);
-          } else {
-            console.log("Perfil criado com sucesso como primeiro usuário");
-            profileCreated = true;
-          }
-        } catch (firstUserError: any) {
-          console.error("Exceção ao inserir como primeiro usuário:", firstUserError);
-        }
-      }
-      
-      // 4. Terceira tentativa: criar o perfil usando a função create_user_profile
+      // 3. Segunda tentativa: usar a função create_user_profile atualizada (sem verificação de admin)
       if (!profileCreated) {
         try {
-          console.log("Tentando criar perfil com dados:", {
-            user_id: data.user.id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            status: user.status || 'ativo'
-          });
-            
+          console.log("Tentando criar perfil com função create_user_profile atualizada");
+          
           const { error: profileError } = await supabase.rpc('create_user_profile', {
             user_id: data.user.id,
             name: user.name,
@@ -156,7 +118,7 @@ export const useUsers = () => {
           if (profileError) {
             console.error("Erro ao criar perfil via RPC:", profileError);
           } else {
-            console.log("Perfil criado com sucesso via RPC");
+            console.log("Perfil criado com sucesso via RPC create_user_profile");
             profileCreated = true;
           }
         } catch (profileError: any) {
@@ -164,7 +126,7 @@ export const useUsers = () => {
         }
       }
       
-      // 5. Quarta tentativa: criar perfil via create_new_auth_user
+      // 4. Terceira tentativa: criar perfil via create_new_auth_user
       if (!profileCreated) {
         try {
           console.log("Tentando criar perfil completo via create_new_auth_user");
@@ -187,7 +149,7 @@ export const useUsers = () => {
         }
       }
 
-      // 6. Verificar se o perfil foi criado com sucesso
+      // 5. Verificar se o perfil foi criado com sucesso
       if (profileCreated) {
         toast.success("Usuário adicionado com sucesso!");
         await fetchUsers();
