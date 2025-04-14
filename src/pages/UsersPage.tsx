@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Header } from "@/components/header";
 import { 
@@ -24,7 +25,8 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
-  DialogFooter 
+  DialogFooter,
+  DialogDescription 
 } from "@/components/ui/dialog";
 import { 
   DropdownMenu,
@@ -193,7 +195,7 @@ export default function UsersPage() {
 
         toast.success("Usuário adicionado com sucesso!");
       } else {
-        // For updating an existing user
+        // For updating an existing user - remove password from updates as it's not in public.users
         const updates = {
           name: userToEdit.name,
           email: userToEdit.email,
@@ -407,6 +409,11 @@ export default function UsersPage() {
             <DialogTitle>
               {userToEdit.id ? "Editar Usuário" : "Novo Usuário"}
             </DialogTitle>
+            <DialogDescription>
+              {userToEdit.id 
+                ? "Edite as informações do usuário existente." 
+                : "Preencha as informações para criar um novo usuário."}
+            </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
