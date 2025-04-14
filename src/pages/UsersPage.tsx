@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
@@ -30,23 +29,19 @@ export default function UsersPage() {
   const { users, isLoading, fetchUsers, createUser, updateUser, deleteUser } = useUsers();
   
   useEffect(() => {
-    // Log user metadata and permissions
     console.log("User metadata:", user?.user_metadata);
     const userRoles = user?.user_metadata?.role || [];
     console.log("User roles:", userRoles);
     const isAdmin = userRoles.includes('admin');
     console.log("Is admin:", isAdmin);
     
-    // Check if user has admin role
     if (!isAdmin) {
       toast.error("Permissão negada para acessar usuários");
       return;
     }
     
-    // Verificar as políticas RLS ativas na tabela users
     const checkDatabasePolicies = async () => {
       try {
-        // Verificar quantos usuários existem no sistema
         const { data: dbUsers, count, error: userError } = await supabase
           .from('users')
           .select('*', { count: 'exact' });
@@ -60,13 +55,11 @@ export default function UsersPage() {
             console.log("Primeiro usuário na tabela:", dbUsers[0]);
           }
           
-          // Verificar permissões do usuário atual
           const { data: { user: currentUser } } = await supabase.auth.getUser();
           if (currentUser) {
             console.log("Usuário atual:", currentUser);
             console.log("ID do usuário atual:", currentUser.id);
             
-            // Verificar se o usuário é o primeiro do sistema
             const { data: isFirstUser, error: firstUserError } = await supabase
               .rpc('is_first_user');
               
@@ -76,7 +69,6 @@ export default function UsersPage() {
               console.log("É o primeiro usuário do sistema?", isFirstUser);
             }
             
-            // Testar inserção direta na tabela users para diagnóstico
             try {
               const { error: testInsertError } = await supabase
                 .from('users')
@@ -92,7 +84,6 @@ export default function UsersPage() {
                 console.error("Erro no teste de inserção direta:", testInsertError);
               } else {
                 console.log("Teste de inserção direta bem-sucedido");
-                // Remover o usuário de teste
                 await supabase
                   .from('users')
                   .delete()
@@ -151,14 +142,12 @@ export default function UsersPage() {
       return;
     }
 
-    // Update or create user
     const success = user.id 
       ? await updateUser({ ...user, role: selectedRoles })
       : await createUser({ ...user, role: selectedRoles });
     
     if (success) {
       setOpenUserDialog(false);
-      // Atualizar a lista após a criação/atualização
       await fetchUsers();
     }
   };
@@ -176,19 +165,26 @@ export default function UsersPage() {
     
     try {
       setIsDeleting(true);
-      const success = await deleteUser(userToDelete);
       
-      // Always close dialog and reset state, regardless of success
-      setOpenDeleteDialog(false);
+      const idToDelete = userToDelete;
+      
+      const success = await deleteUser(idToDelete);
+      
       setUserToDelete(null);
       
-      if (success) {
-        // We already updated the users list in the deleteUser function
-        // So no need to call fetchUsers again
-      }
+      setTimeout(() => {
+        setOpenDeleteDialog(false);
+        
+        if (success) {
+          toast.success("Usuário excluído com sucesso!");
+        }
+      }, 100);
     } catch (error) {
       console.error("Error deleting user:", error);
       toast.error("Ocorreu um erro inesperado ao excluir o usuário");
+      
+      setUserToDelete(null);
+      setTimeout(() => setOpenDeleteDialog(false), 100);
     } finally {
       setIsDeleting(false);
     }
@@ -234,7 +230,6 @@ export default function UsersPage() {
         </div>
       </div>
 
-      {/* User form dialog */}
       <UserDialog 
         open={openUserDialog}
         onOpenChange={setOpenUserDialog}
@@ -243,7 +238,6 @@ export default function UsersPage() {
         onSave={handleSaveUser}
       />
 
-      {/* Delete confirmation dialog */}
       <DeleteConfirmDialog 
         open={openDeleteDialog}
         onOpenChange={setOpenDeleteDialog}

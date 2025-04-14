@@ -20,16 +20,21 @@ interface DeleteConfirmDialogProps {
 export function DeleteConfirmDialog({ open, onOpenChange, onConfirm, isLoading }: DeleteConfirmDialogProps) {
   const handleConfirm = () => {
     onConfirm();
-    // Note: We don't close here, letting the parent component handle this
-    // after the operation completes
+    // We don't close the dialog here because we want to show the loading state
+    // The parent component will handle closing after completion
+  };
+  
+  // Force a clean state when dialog is closed
+  const handleOpenChange = (newOpen: boolean) => {
+    // Prevent closing dialog while deletion is in progress
+    if (isLoading && open) return;
+    
+    // Allow closing dialog otherwise
+    onOpenChange(newOpen);
   };
   
   return (
-    <AlertDialog open={open} onOpenChange={(newOpen) => {
-      // Prevent closing the dialog during loading
-      if (isLoading && open) return;
-      onOpenChange(newOpen);
-    }}>
+    <AlertDialog open={open} onOpenChange={handleOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Excluir usuário?</AlertDialogTitle>

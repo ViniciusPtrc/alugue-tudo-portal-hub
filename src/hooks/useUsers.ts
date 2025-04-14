@@ -242,6 +242,11 @@ export const useUsers = () => {
         return false;
       }
       
+      console.log("Iniciando exclusão do usuário:", userId);
+      
+      // Immediately update UI state to improve responsiveness
+      setUsers(prevUsers => prevUsers.filter(user => user.id !== userId));
+      
       const { error } = await supabase.rpc('delete_user', {
         user_id: userId
       });
@@ -249,18 +254,20 @@ export const useUsers = () => {
       if (error) {
         console.error("Erro ao excluir usuário:", error);
         toast.error("Erro ao excluir usuário: " + error.message);
+        
+        // If there was an error, revert the optimistic update by fetching again
+        await fetchUsers();
         return false;
       }
-
-      // Update local state to immediately remove the deleted user
-      setUsers(prevUsers => prevUsers.filter(user => user.id !== userId));
       
-      toast.success("Usuário excluído com sucesso!");
-      // We won't fetch the users again immediately, since we already updated the state
+      console.log("Usuário excluído com sucesso:", userId);
       return true;
     } catch (error: any) {
       console.error("Exceção ao excluir usuário:", error);
       toast.error("Erro ao excluir usuário: " + (error.message || "Erro desconhecido"));
+      
+      // If there was an exception, revert the optimistic update by fetching again
+      await fetchUsers();
       return false;
     } finally {
       setIsLoading(false);
