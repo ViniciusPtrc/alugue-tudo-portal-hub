@@ -3,8 +3,6 @@ import { CheckCircle, Clock, ListTodo } from "lucide-react";
 import { Header } from "@/components/header";
 import { StatCard } from "@/components/stat-card";
 import { BirthdayCard, BirthdayPerson } from "@/components/birthday-card";
-import { UserTaskList } from "@/components/user-task-list";
-import { Task } from "@/components/task-card";
 
 const currentUser = {
   name: "João Silva",
@@ -52,63 +50,7 @@ const birthdays: BirthdayPerson[] = [
   },
 ];
 
-// Exemplo de dados de tarefas
-const mockTasks: Task[] = [
-  {
-    id: "1",
-    title: "Finalizar relatório mensal",
-    description: "Concluir o relatório de vendas do mês de abril",
-    status: "em-andamento",
-    due_date: "2025-04-16",
-    sector: "Comercial",
-    created_by: "user1",
-    priority: "alta",
-  },
-  {
-    id: "2",
-    title: "Reunião com fornecedores",
-    description: "Discutir novos contratos e prazos",
-    status: "pendente",
-    due_date: "2025-04-18",
-    sector: "Operacional",
-    created_by: "user1",
-    priority: "media",
-  },
-  {
-    id: "3",
-    title: "Atualizar planilha de controle",
-    description: "Incluir novos clientes na planilha",
-    status: "concluida",
-    due_date: "2025-04-13",
-    sector: "Financeiro",
-    created_by: "user1",
-    priority: "baixa",
-  },
-];
-
 const Index = () => {
-  // Estatísticas de tarefas
-  const pendingTasks = mockTasks.filter(task => task.status === "pendente").length;
-  const inProgressTasks = mockTasks.filter(task => task.status === "em-andamento").length;
-  const completedTasks = mockTasks.filter(task => task.status === "concluida").length;
-
-  // Manipuladores de eventos para as tarefas (seriam substituídos por chamadas reais à API)
-  const handleAddTask = () => {
-    console.log("Adicionar nova tarefa");
-  };
-
-  const handleEditTask = (task: Task) => {
-    console.log("Editar tarefa", task);
-  };
-
-  const handleDeleteTask = (id: string) => {
-    console.log("Excluir tarefa", id);
-  };
-
-  const handleStatusChange = (id: string, status: "pendente" | "em-andamento" | "concluida") => {
-    console.log("Alterar status da tarefa", id, status);
-  };
-
   return (
     <div className="flex flex-col min-h-screen">
       <Header user={currentUser} />
@@ -125,45 +67,27 @@ const Index = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <StatCard
               title="Tarefas Pendentes"
-              value={pendingTasks}
+              value={0}
               icon={Clock}
               iconColor="text-yellow-500"
             />
             <StatCard
               title="Tarefas em Andamento"
-              value={inProgressTasks}
+              value={0}
               icon={ListTodo}
               iconColor="text-blue-500"
             />
             <StatCard
               title="Tarefas Concluídas"
-              value={completedTasks}
+              value={0}
               icon={CheckCircle}
               iconColor="text-green-500"
             />
           </div>
-
-          {/* Layout principal de duas colunas */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Coluna principal (2/3) */}
-            <div className="lg:col-span-2 space-y-6">
-              <div>
-                <h2 className="text-xl font-semibold mb-4">Minhas Tarefas</h2>
-                <UserTaskList
-                  tasks={mockTasks}
-                  onAddTask={handleAddTask}
-                  onEditTask={handleEditTask}
-                  onDeleteTask={handleDeleteTask}
-                  onStatusChange={handleStatusChange}
-                  sectors={["Comercial", "Financeiro", "Operacional", "RH"]}
-                />
-              </div>
-            </div>
-            
-            {/* Barra lateral (1/3) */}
-            <div className="space-y-6">
-              <BirthdayCard birthdays={birthdays} />
-            </div>
+          
+          {/* Barra lateral (1/3) */}
+          <div className="space-y-6">
+            <BirthdayCard birthdays={birthdays} />
           </div>
         </div>
       </div>
