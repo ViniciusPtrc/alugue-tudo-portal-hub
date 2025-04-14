@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Header } from "@/components/header";
 import { 
@@ -105,6 +104,11 @@ export default function UsersPage() {
     try {
       setIsLoading(true);
       
+      // Logging user info for debugging
+      console.info("User metadata:", user?.user_metadata);
+      console.info("User roles:", user?.user_metadata?.role);
+      console.info("Is admin:", user?.user_metadata?.role?.includes('admin'));
+      
       // Check if user has admin role first
       const userRoles = user?.user_metadata?.role || [];
       if (!userRoles.includes('admin')) {
@@ -112,11 +116,10 @@ export default function UsersPage() {
         return;
       }
 
+      // Fetch the users using RPC instead of direct table access
       const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .order('created_at', { ascending: false });
-
+        .rpc('get_all_users')
+        
       if (error) {
         console.error("Error fetching users:", error);
         toast.error("Erro ao carregar usuários: " + error.message);
@@ -186,7 +189,7 @@ export default function UsersPage() {
       
       // For a new user
       if (!userToEdit.id) {
-        // Call the RPC function to create a new user with proper password handling
+        // Using the RPC function to create a new user with proper password handling
         const { data, error } = await supabase.rpc('create_new_auth_user', {
           email: userToEdit.email,
           password: userToEdit.password,
@@ -203,18 +206,14 @@ export default function UsersPage() {
 
         toast.success("Usuário adicionado com sucesso!");
       } else {
-        // For updating an existing user - remove password from updates as it's not in public.users
-        const updates = {
-          name: userToEdit.name,
-          email: userToEdit.email,
-          role: selectedRoles,
-          status: userToEdit.status
-        };
-
-        const { error } = await supabase
-          .from('users')
-          .update(updates)
-          .eq('id', userToEdit.id);
+        // For updating an existing user - remove password from updates as it's handled differently
+        const { error } = await supabase.rpc('update_user', {
+          user_id: userToEdit.id,
+          user_name: userToEdit.name,
+          user_email: userToEdit.email,
+          user_role: selectedRoles,
+          user_status: userToEdit.status
+        });
 
         if (error) {
           console.error("Error updating user:", error);
@@ -222,10 +221,19 @@ export default function UsersPage() {
           return;
         }
 
-        // If password was provided, update it separately in auth.users
+        // If password was provided, update it separately
         if (userToEdit.password && userToEdit.password !== "") {
-          // Password updates would need a serverless function or admin rights
-          toast.info("Função para atualizar senha ainda não implementada");
+          const { error: passwordError } = await supabase.rpc('update_user_password', {
+            user_id: userToEdit.id,
+            new_password: userToEdit.password
+          });
+          
+          if (passwordError) {
+            console.error("Error updating password:", passwordError);
+            toast.error("Erro ao atualizar senha: " + passwordError.message);
+          } else {
+            toast.success("Senha atualizada com sucesso!");
+          }
         }
 
         toast.success("Usuário atualizado com sucesso!");
@@ -251,10 +259,9 @@ export default function UsersPage() {
       try {
         setIsLoading(true);
         
-        const { error } = await supabase
-          .from('users')
-          .delete()
-          .eq('id', userToDelete);
+        const { error } = await supabase.rpc('delete_user', {
+          user_id: userToDelete
+        });
 
         if (error) {
           console.error("Error deleting user:", error);
