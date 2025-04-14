@@ -12,6 +12,7 @@ import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import TasksPage from "./pages/TasksPage";
 import RhPage from "./pages/RhPage";
+import UsersPage from "./pages/UsersPage";
 
 // Componentes
 import { AppSidebarWrapper } from "./components/app-sidebar";
@@ -124,6 +125,10 @@ const App = () => {
               <Route 
                 path="/tarefas"
                 element={<ProtectedRoute element={<TasksPage />} />}
+              />
+              <Route 
+                path="/usuarios"
+                element={<ProtectedRoute element={<UsersPage />} requiredRoles={["admin"]} />}
               />
               <Route 
                 path="/financeiro"

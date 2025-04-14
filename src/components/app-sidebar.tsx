@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import {
@@ -13,6 +12,7 @@ import {
   Settings,
   ShoppingCart,
   Users,
+  UserCog,
 } from "lucide-react";
 import {
   Sidebar,
@@ -83,6 +83,13 @@ const navItems: SidebarItem[] = [
     role: "rh",
   },
   {
+    title: "Gerenciar Usuários",
+    path: "/usuarios",
+    icon: UserCog,
+    section: "sistema",
+    role: "admin",
+  },
+  {
     title: "Relatórios",
     path: "/relatorios",
     icon: PieChart,
@@ -112,14 +119,12 @@ export function AppSidebar({ className, userRole = [] }: AppSidebarProps) {
     setMounted(true);
   }, []);
 
-  // Agrupar os itens de navegação por seção
   const groupedItems = navItems.reduce((acc, item) => {
     const section = item.section || "outros";
     if (!acc[section]) {
       acc[section] = [];
     }
     
-    // Verificar permissões
     const hasPermission = !item.role || 
       isAdmin || 
       (item.role && roles.some(role => 
@@ -135,7 +140,6 @@ export function AppSidebar({ className, userRole = [] }: AppSidebarProps) {
     return acc;
   }, {} as Record<string, SidebarItem[]>);
 
-  // Mapeamento de títulos das seções
   const sectionTitles: Record<string, string> = {
     principal: "PRINCIPAL",
     setores: "SETORES",
