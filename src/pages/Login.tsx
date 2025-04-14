@@ -1,23 +1,25 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Eye, EyeOff, LogIn } from "lucide-react";
+import { Eye, EyeOff, LogIn, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Logo } from "@/components/logo";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/App";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isCreatingAdmin, setIsCreatingAdmin] = useState(false);
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const { toast: uiToast } = useToast();
   const { signIn } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -25,20 +27,9 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      // Sign in with Supabase Auth
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      // Use the signIn method from context to update the application state
       await signIn(email, password);
       
-      toast({
+      uiToast({
         title: "Login realizado com sucesso!",
         description: "Você será redirecionado para o dashboard.",
       });
@@ -46,13 +37,83 @@ export default function Login() {
       navigate("/");
     } catch (error: any) {
       console.error("Erro de login:", error);
-      toast({
+      uiToast({
         title: "Erro ao fazer login",
         description: error.message || "Verifique suas credenciais e tente novamente.",
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const createAdminUser = async () => {
+    if (email !== "admin@aluguetudo.com" || password !== "admin123") {
+      uiToast({
+        title: "Credenciais inválidas para admin",
+        description: "Use admin@aluguetudo.com e admin123 para criar o usuário admin.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsCreatingAdmin(true);
+    try {
+      // Verificar se já existe um admin
+      const { data: existingAdmins, error: queryError } = await supabase
+        .from('users')
+        .select('*')
+        .contains('role', ['admin'])
+        .limit(1);
+
+      if (queryError) {
+        throw queryError;
+      }
+
+      if (existingAdmins && existingAdmins.length > 0) {
+        toast.warning('Já existe um usuário admin no sistema. Tente fazer login normalmente.');
+        setIsCreatingAdmin(false);
+        return;
+      }
+
+      // Criar usuário admin
+      const { data, error } = await supabase.auth.signUp({
+        email: 'admin@aluguetudo.com',
+        password: 'admin123',
+        options: {
+          data: {
+            name: 'Administrador',
+            role: ['admin'],
+            status: 'ativo'
+          }
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // Forçar inserção no banco público também
+      const { error: insertError } = await supabase
+        .from('users')
+        .insert({
+          id: data.user?.id,
+          email: 'admin@aluguetudo.com',
+          name: 'Administrador',
+          role: ['admin'],
+          status: 'ativo'
+        });
+
+      if (insertError) {
+        console.warn('Erro ao inserir usuário na tabela pública:', insertError);
+      }
+
+      toast.success('Usuário admin criado com sucesso. Agora tente fazer login.');
+    } catch (error: any) {
+      console.error('Erro ao criar usuário admin:', error);
+      toast.error(`Erro ao criar usuário admin: ${error.message}`);
+    } finally {
+      setIsCreatingAdmin(false);
     }
   };
 
@@ -82,7 +143,7 @@ export default function Login() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  disabled={isLoading}
+                  disabled={isLoading || isCreatingAdmin}
                 />
               </div>
               
@@ -96,7 +157,7 @@ export default function Login() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    disabled={isLoading}
+                    disabled={isLoading || isCreatingAdmin}
                   />
                   <Button
                     type="button"
@@ -104,7 +165,7 @@ export default function Login() {
                     size="icon"
                     className="absolute right-0 top-0 h-full px-3"
                     onClick={() => setShowPassword(!showPassword)}
-                    disabled={isLoading}
+                    disabled={isLoading || isCreatingAdmin}
                   >
                     {showPassword ? (
                       <EyeOff className="h-4 w-4" />
@@ -121,7 +182,7 @@ export default function Login() {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={isLoading}
+                disabled={isLoading || isCreatingAdmin}
               >
                 {isLoading ? (
                   <span className="flex items-center">
@@ -155,6 +216,48 @@ export default function Login() {
               </Button>
             </form>
           </CardContent>
+          <CardFooter className="flex flex-col space-y-4">
+            <div className="text-sm text-muted-foreground text-center w-full">
+              Se for o primeiro acesso, use admin@aluguetudo.com e admin123
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={createAdminUser}
+              disabled={isLoading || isCreatingAdmin}
+            >
+              {isCreatingAdmin ? (
+                <span className="flex items-center">
+                  <svg
+                    className="animate-spin -ml-1 mr-2 h-4 w-4"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  Criando...
+                </span>
+              ) : (
+                <>
+                  <UserPlus className="mr-2 h-4 w-4" /> Criar usuário admin
+                </>
+              )}
+            </Button>
+          </CardFooter>
         </Card>
       </div>
     </div>
