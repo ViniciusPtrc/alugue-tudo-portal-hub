@@ -40,67 +40,35 @@ export default function UsersPage() {
       return;
     }
     
-    const checkDatabasePolicies = async () => {
+    const loadUsers = async () => {
       try {
-        const { data: dbUsers, count, error: userError } = await supabase
-          .from('users')
-          .select('*', { count: 'exact' });
-          
-        if (userError) {
-          console.error("Erro ao verificar usuários:", userError);
-        } else {
-          console.log(`Encontrados ${count || 0} usuários na tabela public.users`);
-          
-          if (dbUsers && dbUsers.length > 0) {
-            console.log("Primeiro usuário na tabela:", dbUsers[0]);
-          }
-          
-          const { data: { user: currentUser } } = await supabase.auth.getUser();
-          if (currentUser) {
-            console.log("Usuário atual:", currentUser);
-            console.log("ID do usuário atual:", currentUser.id);
-            
-            const { data: isFirstUser, error: firstUserError } = await supabase
-              .rpc('is_first_user');
-              
-            if (firstUserError) {
-              console.error("Erro ao verificar se é o primeiro usuário:", firstUserError);
-            } else {
-              console.log("É o primeiro usuário do sistema?", isFirstUser);
-            }
-            
-            try {
-              const { error: testInsertError } = await supabase
-                .from('users')
-                .insert({
-                  id: '00000000-0000-0000-0000-000000000000',
-                  name: 'Test User (será removido)',
-                  email: 'test@test.com',
-                  role: ['test'],
-                  status: 'inativo'
-                });
-              
-              if (testInsertError) {
-                console.error("Erro no teste de inserção direta:", testInsertError);
-              } else {
-                console.log("Teste de inserção direta bem-sucedido");
-                await supabase
-                  .from('users')
-                  .delete()
-                  .eq('id', '00000000-0000-0000-0000-000000000000');
-              }
-            } catch (e) {
-              console.error("Exceção no teste de inserção direta:", e);
-            }
-          }
-        }
-      } catch (e) {
-        console.error("Erro ao verificar estado do banco:", e);
+        console.log("Iniciando carregamento de usuários");
+        await fetchUsers();
+        console.log("Usuários carregados com sucesso");
+      } catch (error) {
+        console.error("Erro ao carregar usuários:", error);
+        toast.error("Falha ao carregar lista de usuários");
       }
     };
     
-    checkDatabasePolicies();
-    fetchUsers();
+    const checkDatabaseConnection = async () => {
+      try {
+        const { data, error } = await supabase.from('users').select('count').limit(1);
+        
+        if (error) {
+          console.error("Erro ao conectar ao banco de dados:", error);
+          toast.error("Problemas de conexão com o banco de dados");
+        } else {
+          console.log("Conexão com o banco de dados estabelecida");
+          loadUsers();
+        }
+      } catch (e) {
+        console.error("Exceção ao verificar conexão:", e);
+        toast.error("Erro ao estabelecer conexão com o banco de dados");
+      }
+    };
+    
+    checkDatabaseConnection();
   }, [user]);
 
   const filteredUsers = users.filter((user) => {
