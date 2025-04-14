@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-route
 import { useState, createContext, useContext, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
+import { toast } from "sonner";
 
 // Páginas
 import Index from "./pages/Index";
@@ -76,7 +76,47 @@ const App = () => {
   const [session, setSession] = useState<Session | null>(null);
 
   useEffect(() => {
-    // Set up auth state listener
+    // Seed admin user if no admin exists
+    const seedAdminUser = async () => {
+      try {
+        // First, check if any admin users exist
+        const { data: existingAdmins } = await supabase
+          .from('users')
+          .select('*')
+          .contains('role', ['admin'])
+          .limit(1);
+
+        if (existingAdmins && existingAdmins.length === 0) {
+          // No admin exists, so sign up the admin user
+          const { data, error } = await supabase.auth.signUp({
+            email: 'admin@aluguetudo.com',
+            password: 'admin123',
+            options: {
+              data: {
+                name: 'Administrador',
+                role: ['admin'],
+                status: 'ativo'
+              }
+            }
+          });
+
+          if (error) {
+            console.error('Error creating admin user:', error);
+            toast.error('Erro ao criar usuário admin');
+            return;
+          }
+
+          if (data.user) {
+            toast.success('Usuário admin criado com sucesso');
+          }
+        }
+      } catch (error) {
+        console.error('Unexpected error seeding admin:', error);
+        toast.error('Erro inesperado ao criar usuário admin');
+      }
+    };
+
+    // Existing authentication state change logic
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, currentSession) => {
         setSession(currentSession);
@@ -84,10 +124,15 @@ const App = () => {
       }
     );
 
-    // Check for existing session
+    // Check for existing session and seed admin if needed
     supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
+      
+      // Only try to seed if no user is currently logged in
+      if (!currentSession) {
+        seedAdminUser();
+      }
     });
 
     return () => subscription.unsubscribe();
