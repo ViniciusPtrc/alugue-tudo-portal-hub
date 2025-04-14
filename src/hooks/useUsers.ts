@@ -12,7 +12,7 @@ export const useUsers = () => {
     try {
       setIsLoading(true);
       
-      // Fetch the users using RPC
+      // Fetch the users using RPC with the corrected admin verification
       const { data, error } = await supabase
         .rpc('get_all_users');
         
@@ -42,7 +42,7 @@ export const useUsers = () => {
         return false;
       }
       
-      // Using the RPC function to create a new user with proper password handling
+      // Using the RPC function with corrected admin verification
       const { data, error } = await supabase.rpc('create_new_auth_user', {
         email: user.email,
         password: user.password,
@@ -78,7 +78,7 @@ export const useUsers = () => {
         return false;
       }
       
-      // For updating an existing user
+      // Using the RPC function with corrected admin verification
       const { error } = await supabase.rpc('update_user', {
         user_id: user.id,
         user_name: user.name,
@@ -93,7 +93,7 @@ export const useUsers = () => {
         return false;
       }
 
-      // If password was provided, update it separately
+      // If password was provided, update it separately with corrected admin verification
       if (user.password && user.password !== "") {
         const { error: passwordError } = await supabase.rpc('update_user_password', {
           user_id: user.id,
@@ -124,6 +124,7 @@ export const useUsers = () => {
     try {
       setIsLoading(true);
       
+      // Using the RPC function with corrected admin verification
       const { error } = await supabase.rpc('delete_user', {
         user_id: userId
       });
