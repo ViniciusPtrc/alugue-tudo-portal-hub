@@ -2,6 +2,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Gift } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 export interface BirthdayPerson {
   id: string;
@@ -27,6 +29,12 @@ export function BirthdayCard({ birthdays, className }: BirthdayCardProps) {
   const todayBirthdays = sortedBirthdays.filter(person => person.isToday);
   const upcomingBirthdays = sortedBirthdays.filter(person => !person.isToday);
 
+  // Função para formatar a data
+  const formatBirthday = (dateString: string) => {
+    const date = new Date(dateString);
+    return format(date, "dd 'de' MMMM", { locale: ptBR });
+  };
+
   return (
     <Card className={cn("overflow-hidden", className)}>
       <CardHeader className="pb-3">
@@ -50,9 +58,9 @@ export function BirthdayCard({ birthdays, className }: BirthdayCardProps) {
                       </span>
                     )}
                   </div>
-                  {person.age && (
-                    <span className="text-sm">{person.age} anos</span>
-                  )}
+                  <span className="text-sm font-bold text-primary">
+                    {formatBirthday(person.birthday)}
+                  </span>
                 </div>
               ))}
             </div>
@@ -70,13 +78,9 @@ export function BirthdayCard({ birthdays, className }: BirthdayCardProps) {
                       </span>
                     )}
                   </div>
-                  <div className="text-sm">
-                    <span>
-                      {person.daysUntil === 1 
-                        ? 'Amanhã' 
-                        : `Em ${person.daysUntil} dias`}
-                    </span>
-                  </div>
+                  <span className="text-sm">
+                    {formatBirthday(person.birthday)}
+                  </span>
                 </div>
               ))
             ) : (
