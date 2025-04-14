@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { User } from '@/types/user';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,7 +11,6 @@ export const useUsers = () => {
     try {
       setIsLoading(true);
       
-      // Fetch the users using RPC with the corrected admin verification
       const { data, error } = await supabase
         .rpc('get_all_users');
         
@@ -42,7 +40,6 @@ export const useUsers = () => {
         return false;
       }
       
-      // Primeiro, criar usuário usando signUp do Supabase
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: user.email,
         password: user.password,
@@ -61,7 +58,6 @@ export const useUsers = () => {
         return false;
       }
 
-      // Se o usuário foi criado com sucesso, adicionar perfil complementar
       if (data.user) {
         const { error: profileError } = await supabase.rpc('create_user_profile', {
           user_id: data.user.id,
@@ -99,7 +95,6 @@ export const useUsers = () => {
         return false;
       }
       
-      // Using the RPC function with corrected admin verification
       const { error } = await supabase.rpc('update_user', {
         user_id: user.id,
         user_name: user.name,
@@ -114,7 +109,6 @@ export const useUsers = () => {
         return false;
       }
 
-      // If password was provided, update it separately with corrected admin verification
       if (user.password && user.password !== "") {
         const { error: passwordError } = await supabase.rpc('update_user_password', {
           user_id: user.id,
@@ -145,13 +139,19 @@ export const useUsers = () => {
     try {
       setIsLoading(true);
       
-      // Using the RPC function with corrected admin verification
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      
+      if (!currentUser) {
+        toast.error("Usuário não autenticado");
+        return false;
+      }
+      
       const { error } = await supabase.rpc('delete_user', {
         user_id: userId
       });
 
       if (error) {
-        console.error("Error deleting user:", error);
+        console.error("Erro ao excluir usuário:", error);
         toast.error("Erro ao excluir usuário: " + error.message);
         return false;
       }
@@ -160,7 +160,7 @@ export const useUsers = () => {
       await fetchUsers();
       return true;
     } catch (error: any) {
-      console.error("Exception deleting user:", error);
+      console.error("Exceção ao excluir usuário:", error);
       toast.error("Erro ao excluir usuário: " + error.message);
       return false;
     } finally {
