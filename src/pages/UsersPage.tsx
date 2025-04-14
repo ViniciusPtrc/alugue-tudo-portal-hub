@@ -104,6 +104,14 @@ export default function UsersPage() {
   const fetchUsers = async () => {
     try {
       setIsLoading(true);
+      
+      // Check if user has admin role first
+      const userRoles = user?.user_metadata?.role || [];
+      if (!userRoles.includes('admin')) {
+        toast.error("Permissão negada para acessar usuários");
+        return;
+      }
+
       const { data, error } = await supabase
         .from('users')
         .select('*')
@@ -111,7 +119,7 @@ export default function UsersPage() {
 
       if (error) {
         console.error("Error fetching users:", error);
-        toast.error("Erro ao carregar usuários");
+        toast.error("Erro ao carregar usuários: " + error.message);
         return;
       }
 
@@ -178,7 +186,7 @@ export default function UsersPage() {
       
       // For a new user
       if (!userToEdit.id) {
-        // Call the function to create a new user in auth and public schema
+        // Call the RPC function to create a new user with proper password handling
         const { data, error } = await supabase.rpc('create_new_auth_user', {
           email: userToEdit.email,
           password: userToEdit.password,
@@ -216,7 +224,7 @@ export default function UsersPage() {
 
         // If password was provided, update it separately in auth.users
         if (userToEdit.password && userToEdit.password !== "") {
-          // This would require an admin function to update the password
+          // Password updates would need a serverless function or admin rights
           toast.info("Função para atualizar senha ainda não implementada");
         }
 
