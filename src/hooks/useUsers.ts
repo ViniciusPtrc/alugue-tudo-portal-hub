@@ -41,6 +41,12 @@ export const useUsers = () => {
         return false;
       }
       
+      console.log("Iniciando criação de usuário:", { 
+        email: user.email, 
+        name: user.name, 
+        role: user.role
+      });
+      
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: user.email,
         password: user.password,
@@ -69,21 +75,39 @@ export const useUsers = () => {
           status: user.status || 'ativo'
         });
         
-        const { error: profileError, data: profileData } = await supabase.rpc('create_user_profile', {
-          user_id: data.user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          status: user.status || 'ativo'
-        });
+        // Criando perfil do usuário diretamente na tabela public.users como alternativa à RPC
+        const { error: insertError } = await supabase
+          .from('users')
+          .insert({
+            id: data.user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            status: user.status || 'ativo'
+          });
+          
+        if (insertError) {
+          console.error("Erro ao inserir diretamente na tabela users:", insertError);
+          
+          // Tentativa alternativa usando a função RPC
+          console.log("Tentando criar perfil via RPC como fallback");
+          const { error: profileError, data: profileData } = await supabase.rpc('create_user_profile', {
+            user_id: data.user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            status: user.status || 'ativo'
+          });
 
-        if (profileError) {
-          console.error("Erro ao criar perfil de usuário:", profileError);
-          toast.error("Erro ao criar perfil: " + profileError.message);
-          return false;
+          if (profileError) {
+            console.error("Erro ao criar perfil via RPC:", profileError);
+            toast.error("Erro ao criar perfil: " + profileError.message);
+            return false;
+          }
+          console.log("Perfil criado com sucesso via RPC:", profileData);
+        } else {
+          console.log("Perfil criado com sucesso via insert direto");
         }
-        
-        console.log("Perfil criado com sucesso:", profileData);
       } else {
         console.error("Usuário criado, mas objeto user não foi retornado");
         toast.error("Erro ao criar perfil de usuário: dados incompletos");
