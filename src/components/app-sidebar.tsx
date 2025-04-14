@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import {
@@ -10,9 +11,11 @@ import {
   LibraryBig,
   PieChart,
   Settings,
+  ShieldAlert,
   ShoppingCart,
   Users,
   UserCog,
+  Lock,
 } from "lucide-react";
 import {
   Sidebar,
@@ -32,6 +35,7 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Logo } from "@/components/logo";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/App";
 
 export type SidebarItem = {
   title: string;
@@ -112,7 +116,8 @@ interface AppSidebarProps {
 
 export function AppSidebar({ className, userRole = [] }: AppSidebarProps) {
   const [mounted, setMounted] = useState(false);
-  const roles = Array.isArray(userRole) ? userRole : [userRole];
+  const { user, signOut } = useAuth();
+  const roles = user?.role || [];
   const isAdmin = roles.includes("admin");
 
   useEffect(() => {
@@ -175,6 +180,7 @@ export function AppSidebar({ className, userRole = [] }: AppSidebarProps) {
                         >
                           <item.icon className="h-5 w-5" />
                           <span>{item.title}</span>
+                          {item.role === "admin" && <ShieldAlert className="h-3.5 w-3.5 ml-1 text-amber-500" />}
                         </NavLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -188,7 +194,7 @@ export function AppSidebar({ className, userRole = [] }: AppSidebarProps) {
       <SidebarFooter className="px-4 py-3">
         <div className="flex items-center justify-between">
           <ThemeToggle />
-          <Button variant="outline" size="sm">Sair</Button>
+          <Button variant="outline" size="sm" onClick={signOut}>Sair</Button>
         </div>
       </SidebarFooter>
     </Sidebar>

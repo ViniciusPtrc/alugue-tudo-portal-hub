@@ -47,9 +47,13 @@ import {
 import { toast } from "sonner";
 import { 
   Edit,
+  Eye,
+  EyeOff,
+  Lock,
   MoreHorizontal,
   Plus,
   Search,
+  ShieldAlert,
   Trash2,
   UserPlus,
   Users
@@ -61,6 +65,7 @@ interface User {
   id: string;
   name: string;
   email: string;
+  password: string;
   role: string[];
   status: "ativo" | "inativo";
   created_at: string;
@@ -72,6 +77,7 @@ const mockUsers: User[] = [
     id: "1",
     name: "João Silva",
     email: "joao.silva@aluguetudo.com",
+    password: "senha123",
     role: ["admin"],
     status: "ativo",
     created_at: "2025-01-15",
@@ -80,6 +86,7 @@ const mockUsers: User[] = [
     id: "2",
     name: "Maria Souza",
     email: "maria.souza@aluguetudo.com",
+    password: "senha456",
     role: ["rh"],
     status: "ativo",
     created_at: "2025-02-10",
@@ -88,6 +95,7 @@ const mockUsers: User[] = [
     id: "3",
     name: "Pedro Santos",
     email: "pedro.santos@aluguetudo.com",
+    password: "senha789",
     role: ["financeiro"],
     status: "ativo",
     created_at: "2025-02-25",
@@ -96,6 +104,7 @@ const mockUsers: User[] = [
     id: "4",
     name: "Ana Oliveira",
     email: "ana.oliveira@aluguetudo.com",
+    password: "senha321",
     role: ["comercial"],
     status: "inativo",
     created_at: "2025-03-05",
@@ -104,6 +113,7 @@ const mockUsers: User[] = [
     id: "5",
     name: "Carlos Ferreira",
     email: "carlos.ferreira@aluguetudo.com",
+    password: "senha654",
     role: ["operacional"],
     status: "ativo",
     created_at: "2025-03-20",
@@ -128,10 +138,12 @@ export default function UsersPage() {
   const [userToEdit, setUserToEdit] = useState<Partial<User>>({
     name: "",
     email: "",
+    password: "",
     role: [],
     status: "ativo",
   });
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const filteredUsers = users.filter((user) => {
     return (
@@ -144,22 +156,30 @@ export default function UsersPage() {
     setUserToEdit({
       name: "",
       email: "",
+      password: "",
       role: [],
       status: "ativo",
     });
     setSelectedRoles([]);
+    setShowPassword(false);
     setOpenUserDialog(true);
   };
 
   const handleEditUser = (user: User) => {
-    setUserToEdit(user);
+    setUserToEdit({...user, password: "••••••••"}); // Mascarando a senha por segurança
     setSelectedRoles(user.role);
+    setShowPassword(false);
     setOpenUserDialog(true);
   };
 
   const handleSaveUser = () => {
     if (!userToEdit.name || !userToEdit.email) {
       toast.error("Nome e e-mail são obrigatórios");
+      return;
+    }
+
+    if (!userToEdit.id && (!userToEdit.password || userToEdit.password === "••••••••")) {
+      toast.error("Senha é obrigatória para novos usuários");
       return;
     }
 
@@ -174,6 +194,7 @@ export default function UsersPage() {
         id: crypto.randomUUID(),
         name: userToEdit.name,
         email: userToEdit.email,
+        password: userToEdit.password || "",
         role: selectedRoles,
         status: userToEdit.status as "ativo" | "inativo",
         created_at: new Date().toISOString().split("T")[0],
@@ -189,6 +210,7 @@ export default function UsersPage() {
                 ...user,
                 name: userToEdit.name || user.name,
                 email: userToEdit.email || user.email,
+                password: userToEdit.password === "••••••••" ? user.password : (userToEdit.password || user.password),
                 role: selectedRoles,
                 status: userToEdit.status as "ativo" | "inativo" || user.status,
               }
@@ -220,6 +242,10 @@ export default function UsersPage() {
         ? current.filter((r) => r !== roleId)
         : [...current, roleId]
     );
+  };
+
+  const toggleShowPassword = () => {
+    setShowPassword(!showPassword);
   };
 
   return (
@@ -287,7 +313,7 @@ export default function UsersPage() {
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
                             {user.role.map((role) => (
-                              <Badge key={role} variant="secondary" className="text-xs">
+                              <Badge key={role} variant={role === "admin" ? "default" : "secondary"} className="text-xs">
                                 {availableRoles.find(r => r.id === role)?.label || role}
                               </Badge>
                             ))}
@@ -368,6 +394,34 @@ export default function UsersPage() {
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="password" className="text-right">
+                Senha
+              </Label>
+              <div className="col-span-3 relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={userToEdit.password || ""}
+                  onChange={(e) => setUserToEdit({ ...userToEdit, password: e.target.value })}
+                  className="pr-10"
+                  placeholder={userToEdit.id ? "Mantenha vazio para não alterar" : "Digite a senha"}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 h-full"
+                  onClick={toggleShowPassword}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
               <Label className="text-right">
                 Papéis
               </Label>
@@ -381,7 +435,14 @@ export default function UsersPage() {
                       onChange={() => toggleRole(role.id)}
                       className="h-4 w-4"
                     />
-                    <Label htmlFor={`role-${role.id}`}>{role.label}</Label>
+                    <Label htmlFor={`role-${role.id}`}>
+                      {role.id === "admin" && (
+                        <span className="inline-flex items-center">
+                          {role.label} <ShieldAlert className="h-4 w-4 ml-1 text-amber-500" />
+                        </span>
+                      )}
+                      {role.id !== "admin" && role.label}
+                    </Label>
                   </div>
                 ))}
               </div>

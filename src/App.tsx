@@ -27,6 +27,45 @@ interface User {
   role: string[];
 }
 
+// Usuários do sistema
+const systemUsers = [
+  {
+    id: "1",
+    email: "admin@aluguetudo.com",
+    password: "admin123",
+    name: "João Silva",
+    role: ["admin", "rh", "financeiro", "comercial", "operacional"],
+  },
+  {
+    id: "2",
+    email: "rh@aluguetudo.com",
+    password: "rh123",
+    name: "Maria Souza",
+    role: ["rh"],
+  },
+  {
+    id: "3",
+    email: "financeiro@aluguetudo.com",
+    password: "financeiro123",
+    name: "Pedro Santos",
+    role: ["financeiro"],
+  },
+  {
+    id: "4",
+    email: "comercial@aluguetudo.com",
+    password: "comercial123",
+    name: "Ana Oliveira",
+    role: ["comercial"],
+  },
+  {
+    id: "5",
+    email: "operacional@aluguetudo.com",
+    password: "operacional123",
+    name: "Carlos Ferreira",
+    role: ["operacional"],
+  },
+];
+
 interface AuthContextType {
   user: User | null;
   signIn: (email: string, password: string) => Promise<void>;
@@ -74,32 +113,29 @@ const ProtectedRoute = ({ element, requiredRoles }: ProtectedRouteProps) => {
 };
 
 const App = () => {
-  // Estado para simular autenticação (será substituído pelo Supabase)
+  // Estado para simular autenticação
   const [user, setUser] = useState<User | null>(() => {
     // Verifica se existe um usuário salvo no localStorage
     const savedUser = localStorage.getItem('user');
     return savedUser ? JSON.parse(savedUser) : null;
   });
 
-  // Simulação de login (será substituído pela autenticação do Supabase)
+  // Login com verificação de credenciais
   const signIn = async (email: string, password: string) => {
-    // Simulando verificação de credenciais
-    if (email && password) {
-      const mockUser: User = {
-        id: "1",
-        email,
-        name: "João Silva",
-        role: ["admin", "rh", "financeiro", "comercial", "operacional"],
-      };
-      setUser(mockUser);
+    // Verifica as credenciais com os usuários do sistema
+    const foundUser = systemUsers.find(u => u.email === email && u.password === password);
+    
+    if (foundUser) {
+      const { password, ...userWithoutPassword } = foundUser;
+      setUser(userWithoutPassword);
       // Salva o usuário no localStorage para persistir o login
-      localStorage.setItem('user', JSON.stringify(mockUser));
+      localStorage.setItem('user', JSON.stringify(userWithoutPassword));
     } else {
       throw new Error("Credenciais inválidas");
     }
   };
 
-  // Simulação de logout
+  // Logout
   const signOut = () => {
     setUser(null);
     // Remove o usuário do localStorage ao fazer logout
