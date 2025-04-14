@@ -63,7 +63,7 @@ export function CreateAdminButton({
         console.error("Erro ao criar admin via create_new_auth_user:", rpcError);
       }
       
-      // 3. Criar o admin com opção de não fazer login automaticamente
+      // 3. Criar o admin sem login automático usando emailRedirectTo
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: 'admin@aluguetudo.com',
         password: 'admin123',
@@ -73,7 +73,7 @@ export function CreateAdminButton({
             role: ['admin'],
             status: 'ativo'
           },
-          // Importante: isso evita o login automático após o cadastro
+          // Crucial: isso evita o login automático após o cadastro
           emailRedirectTo: window.location.origin + '/login'
         }
       });
@@ -91,8 +91,16 @@ export function CreateAdminButton({
       
       console.log("Admin criado com sucesso no auth, ID:", data.user.id);
       
-      // Pausa para garantir que a autenticação seja processada
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Restaurar ou verificar a sessão atual imediatamente
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      if (!currentSession) {
+        console.warn("Sessão perdida após criar admin. Redirecionando para login.");
+        // Aguardar um momento para que o toast seja exibido antes do redirecionamento
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 2000);
+        return;
+      }
       
       let profileCreated = false;
       
@@ -142,34 +150,10 @@ export function CreateAdminButton({
         }
       }
       
-      // 6. Verificar uma última vez se o perfil foi criado
-      if (!profileCreated) {
-        const { data: checkProfile } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', data.user.id)
-          .single();
-          
-        if (checkProfile) {
-          console.log("Perfil de admin existe após verificação final:", checkProfile);
-          profileCreated = true;
-        }
-      }
-      
       if (profileCreated) {
         toast.success("Administrador criado com sucesso!");
       } else {
         toast.error("Admin foi criado parcialmente. Contate o suporte.");
-      }
-      
-      // 7. Verificar se a sessão atual foi perdida e redirecionar para login
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-      if (!currentSession) {
-        console.warn("Sessão perdida após criar admin. Redirecionando para login.");
-        // Aguardar um momento para que o toast seja exibido antes do redirecionamento
-        setTimeout(() => {
-          window.location.href = '/login';
-        }, 2000);
       }
       
     } catch (error: any) {

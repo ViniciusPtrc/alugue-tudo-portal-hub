@@ -47,7 +47,7 @@ export const useUsers = () => {
         role: user.role
       });
       
-      // Use create_new_auth_user function instead of signUp to prevent admin logout
+      // Primeira tentativa: usar create_new_auth_user function - mantém a sessão atual
       const { data: newUser, error: createError } = await supabase.rpc('create_new_auth_user', {
         email: user.email,
         password: user.password || '',
@@ -56,122 +56,123 @@ export const useUsers = () => {
         status: user.status || 'ativo'
       });
       
+      if (!createError && newUser) {
+        console.log("Usuário criado com sucesso via create_new_auth_user", newUser);
+        toast.success("Usuário adicionado com sucesso!");
+        await fetchUsers();
+        return true;
+      }
+      
       if (createError) {
         console.error("Erro ao criar usuário via RPC:", createError);
-        
-        // Fallback: try inserting directly without triggering a new session
-        let profileCreated = false;
-        let userId = null;
-        
-        // 1. Try alternative method: first create auth user
-        const { data, error: signUpError } = await supabase.auth.signUp({
-          email: user.email,
-          password: user.password,
-          options: {
-            data: {
-              name: user.name,
-              role: user.role,
-              status: user.status || 'ativo'
-            },
-            // Important: This prevents automatic sign-in after sign-up
-            emailRedirectTo: window.location.origin + '/login'
-          }
-        });
+      }
+      
+      // Segunda tentativa: signUp com emailRedirectTo para evitar login automático
+      let profileCreated = false;
+      let userId = null;
+      
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: user.email,
+        password: user.password,
+        options: {
+          data: {
+            name: user.name,
+            role: user.role,
+            status: user.status || 'ativo'
+          },
+          // Crucial: isso evita o login automático após o cadastro
+          emailRedirectTo: window.location.origin + '/login'
+        }
+      });
 
-        if (signUpError) {
-          console.error("Erro ao criar usuário:", signUpError);
-          toast.error("Erro ao criar usuário: " + signUpError.message);
-          return false;
-        }
-
-        if (!data.user) {
-          console.error("Usuário criado, mas objeto user não foi retornado");
-          toast.error("Erro ao criar perfil de usuário: dados incompletos");
-          return false;
-        }
-        
-        userId = data.user.id;
-        console.log("Usuário criado com sucesso no auth, ID:", userId);
-        
-        // Try to immediately restore the admin session
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-        if (!currentSession) {
-          // If the admin was logged out, try to redirect to login page
-          console.warn("Sessão do admin perdida. Redirecionando para login.");
-          window.location.href = '/login';
-          return false;
-        }
-        
-        // 2. Insert user data to public.users using RLS policies
-        try {
-          console.log("Tentando inserir diretamente na tabela users com política RLS");
-          const { error: insertError } = await supabase
-            .from('users')
-            .insert({
-              id: userId,
-              name: user.name,
-              email: user.email,
-              role: user.role,
-              status: user.status || 'ativo'
-            });
-            
-          if (insertError) {
-            console.error("Erro ao inserir diretamente na tabela users:", insertError);
-          } else {
-            console.log("Perfil criado com sucesso via insert direto");
-            profileCreated = true;
-          }
-        } catch (insertError: any) {
-          console.error("Exceção ao inserir diretamente:", insertError);
-        }
-        
-        // 3. Try using create_user_profile function
-        if (!profileCreated) {
-          try {
-            console.log("Tentando criar perfil com função create_user_profile");
-            
-            const { error: profileError } = await supabase.rpc('create_user_profile', {
-              user_id: userId,
-              name: user.name,
-              email: user.email,
-              role: user.role,
-              status: user.status || 'ativo'
-            });
-
-            if (profileError) {
-              console.error("Erro ao criar perfil via RPC:", profileError);
-            } else {
-              console.log("Perfil criado com sucesso via RPC create_user_profile");
-              profileCreated = true;
-            }
-          } catch (profileError: any) {
-            console.error("Exceção ao criar perfil via RPC:", profileError);
-          }
-        }
-        
-        // 4. Final verification
-        if (!profileCreated) {
-          const { data: checkProfile } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', userId)
-            .single();
-            
-          if (checkProfile) {
-            console.log("Perfil de usuário existe após verificação final:", checkProfile);
-            profileCreated = true;
-          } else {
-            toast.error("Usuário criado parcialmente. O perfil pode não estar completo.");
-            return false;
-          }
-        }
-      } else {
-        console.log("Usuário criado com sucesso via RPC create_new_auth_user, ID:", newUser);
+      if (signUpError) {
+        console.error("Erro ao criar usuário:", signUpError);
+        toast.error("Erro ao criar usuário: " + signUpError.message);
+        return false;
       }
 
-      toast.success("Usuário adicionado com sucesso!");
-      await fetchUsers();
-      return true;
+      if (!data.user) {
+        console.error("Usuário criado, mas objeto user não foi retornado");
+        toast.error("Erro ao criar perfil de usuário: dados incompletos");
+        return false;
+      }
+      
+      userId = data.user.id;
+      console.log("Usuário criado com sucesso no auth, ID:", userId);
+      
+      // Restaura a sessão do admin imediatamente para evitar logout
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      
+      if (!currentSession) {
+        console.warn("Sessão do admin perdida após signUp. Tentando restaurar...");
+        
+        // Se chegarmos aqui, o admin foi deslogado. Mostrar toast com instruções para login
+        toast.error("Sua sessão expirou durante a criação do usuário. Por favor, faça login novamente.");
+        
+        // Redirecionar para login após um breve atraso para o toast ser visualizado
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 2000);
+        
+        return false;
+      }
+      
+      // Tenta inserir o perfil do usuário na tabela users
+      try {
+        console.log("Tentando inserir dados no perfil do usuário via tabela users");
+        const { error: insertError } = await supabase
+          .from('users')
+          .insert({
+            id: userId,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            status: user.status || 'ativo'
+          });
+          
+        if (insertError) {
+          console.error("Erro ao inserir diretamente na tabela users:", insertError);
+        } else {
+          console.log("Perfil criado com sucesso via insert direto");
+          profileCreated = true;
+        }
+      } catch (insertError: any) {
+        console.error("Exceção ao inserir diretamente:", insertError);
+      }
+      
+      // Se não conseguir inserir diretamente, tenta com a função RPC
+      if (!profileCreated) {
+        try {
+          console.log("Tentando criar perfil com função create_user_profile");
+          
+          const { error: profileError } = await supabase.rpc('create_user_profile', {
+            user_id: userId,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            status: user.status || 'ativo'
+          });
+
+          if (profileError) {
+            console.error("Erro ao criar perfil via RPC:", profileError);
+          } else {
+            console.log("Perfil criado com sucesso via RPC create_user_profile");
+            profileCreated = true;
+          }
+        } catch (profileError: any) {
+          console.error("Exceção ao criar perfil via RPC:", profileError);
+        }
+      }
+      
+      // Verificação final do perfil
+      if (profileCreated) {
+        toast.success("Usuário adicionado com sucesso!");
+        await fetchUsers();
+        return true;
+      } else {
+        toast.error("Usuário foi criado, mas o perfil pode não estar completo.");
+        return false;
+      }
     } catch (error: any) {
       console.error("Exceção ao salvar usuário:", error);
       toast.error("Erro ao salvar usuário: " + error.message);
