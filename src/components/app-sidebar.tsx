@@ -117,8 +117,21 @@ interface AppSidebarProps {
 export function AppSidebar({ className, userRole = [] }: AppSidebarProps) {
   const [mounted, setMounted] = useState(false);
   const { user, signOut } = useAuth();
-  const roles = user?.role || [];
+  
+  // Corrigido: Obter corretamente os papéis do usuário autenticado
+  const roles = Array.isArray(user?.user_metadata?.role) 
+    ? user?.user_metadata?.role 
+    : user?.user_metadata?.role 
+      ? [user.user_metadata.role] 
+      : [];
+  
+  // Verificar se o usuário é admin
   const isAdmin = roles.includes("admin");
+  
+  // Log para debug
+  console.log("User metadata:", user?.user_metadata);
+  console.log("User roles:", roles);
+  console.log("Is admin:", isAdmin);
 
   useEffect(() => {
     setMounted(true);
