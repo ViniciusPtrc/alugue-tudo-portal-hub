@@ -51,6 +51,16 @@ export type Database = {
         }
         Returns: string
       }
+      create_user_profile: {
+        Args: {
+          user_id: string
+          name: string
+          email: string
+          role: string[]
+          status: string
+        }
+        Returns: undefined
+      }
       delete_user: {
         Args: { user_id: string }
         Returns: undefined

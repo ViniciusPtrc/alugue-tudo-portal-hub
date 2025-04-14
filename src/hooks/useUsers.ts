@@ -42,26 +42,47 @@ export const useUsers = () => {
         return false;
       }
       
-      // Using the RPC function with corrected admin verification
-      const { data, error } = await supabase.rpc('create_new_auth_user', {
+      // Primeiro, criar usuário usando signUp do Supabase
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email: user.email,
         password: user.password,
-        name: user.name,
-        role: user.role,
-        status: user.status
+        options: {
+          data: {
+            name: user.name,
+            role: user.role,
+            status: user.status || 'ativo'
+          }
+        }
       });
 
-      if (error) {
-        console.error("Error creating user:", error);
-        toast.error("Erro ao criar usuário: " + error.message);
+      if (signUpError) {
+        console.error("Erro ao criar usuário:", signUpError);
+        toast.error("Erro ao criar usuário: " + signUpError.message);
         return false;
+      }
+
+      // Se o usuário foi criado com sucesso, adicionar perfil complementar
+      if (data.user) {
+        const { error: profileError } = await supabase.rpc('create_user_profile', {
+          user_id: data.user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          status: user.status || 'ativo'
+        });
+
+        if (profileError) {
+          console.error("Erro ao criar perfil de usuário:", profileError);
+          toast.error("Erro ao criar perfil: " + profileError.message);
+          return false;
+        }
       }
 
       toast.success("Usuário adicionado com sucesso!");
       await fetchUsers();
       return true;
     } catch (error: any) {
-      console.error("Exception saving user:", error);
+      console.error("Exceção ao salvar usuário:", error);
       toast.error("Erro ao salvar usuário: " + error.message);
       return false;
     } finally {
