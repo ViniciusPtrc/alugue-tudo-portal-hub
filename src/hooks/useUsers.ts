@@ -252,12 +252,15 @@ export const useUsers = () => {
         return false;
       }
 
+      // Update local state to immediately remove the deleted user
+      setUsers(prevUsers => prevUsers.filter(user => user.id !== userId));
+      
       toast.success("Usuário excluído com sucesso!");
-      await fetchUsers();
+      // We won't fetch the users again immediately, since we already updated the state
       return true;
     } catch (error: any) {
       console.error("Exceção ao excluir usuário:", error);
-      toast.error("Erro ao excluir usuário: " + error.message);
+      toast.error("Erro ao excluir usuário: " + (error.message || "Erro desconhecido"));
       return false;
     } finally {
       setIsLoading(false);

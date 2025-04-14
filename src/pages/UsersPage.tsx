@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ export default function UsersPage() {
     status: "ativo",
   });
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { user } = useAuth();
   const { users, isLoading, fetchUsers, createUser, updateUser, deleteUser } = useUsers();
   
@@ -167,14 +169,28 @@ export default function UsersPage() {
   };
 
   const handleDeleteUser = async () => {
-    if (userToDelete) {
+    if (!userToDelete) {
+      setOpenDeleteDialog(false);
+      return;
+    }
+    
+    try {
+      setIsDeleting(true);
       const success = await deleteUser(userToDelete);
+      
+      // Always close dialog and reset state, regardless of success
+      setOpenDeleteDialog(false);
+      setUserToDelete(null);
+      
       if (success) {
-        setOpenDeleteDialog(false);
-        setUserToDelete(null);
-        // Atualizar a lista após a exclusão
-        await fetchUsers();
+        // We already updated the users list in the deleteUser function
+        // So no need to call fetchUsers again
       }
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      toast.error("Ocorreu um erro inesperado ao excluir o usuário");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -194,7 +210,7 @@ export default function UsersPage() {
                 Adicione, edite e remova usuários do sistema.
               </p>
             </div>
-            <Button onClick={handleAddUser} disabled={isLoading}>
+            <Button onClick={handleAddUser} disabled={isLoading || isDeleting}>
               <UserPlus className="h-4 w-4 mr-2" />
               Novo Usuário
             </Button>
@@ -232,7 +248,7 @@ export default function UsersPage() {
         open={openDeleteDialog}
         onOpenChange={setOpenDeleteDialog}
         onConfirm={handleDeleteUser}
-        isLoading={isLoading}
+        isLoading={isDeleting || isLoading}
       />
     </div>
   );
