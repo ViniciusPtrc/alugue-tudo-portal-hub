@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
@@ -42,15 +41,22 @@ export default function UsersPage() {
       return;
     }
     
-    // Verificar estado atual do banco de dados
-    const checkDatabaseState = async () => {
+    // Verificar as políticas RLS ativas na tabela users
+    const checkDatabasePolicies = async () => {
       try {
-        // Verificar se já existem usuários no sistema
-        const { data: dbUsers, error: userError } = await supabase.from('users').select('*');
+        // Verificar quantos usuários existem no sistema
+        const { data: dbUsers, count, error: userError } = await supabase
+          .from('users')
+          .select('*', { count: 'exact' });
+          
         if (userError) {
           console.error("Erro ao verificar usuários:", userError);
         } else {
-          console.log(`Encontrados ${dbUsers?.length || 0} usuários na tabela public.users`);
+          console.log(`Encontrados ${count || 0} usuários na tabela public.users`);
+          
+          if (dbUsers && dbUsers.length > 0) {
+            console.log("Primeiro usuário na tabela:", dbUsers[0]);
+          }
           
           // Verificar permissões do usuário atual
           const { data: { user: currentUser } } = await supabase.auth.getUser();
@@ -58,7 +64,17 @@ export default function UsersPage() {
             console.log("Usuário atual:", currentUser);
             console.log("ID do usuário atual:", currentUser.id);
             
-            // Testar inserção direta na tabela users para diagnostico
+            // Verificar se o usuário é o primeiro do sistema
+            const { data: isFirstUser, error: firstUserError } = await supabase
+              .rpc('is_first_user');
+              
+            if (firstUserError) {
+              console.error("Erro ao verificar se é o primeiro usuário:", firstUserError);
+            } else {
+              console.log("É o primeiro usuário do sistema?", isFirstUser);
+            }
+            
+            // Testar inserção direta na tabela users para diagnóstico
             try {
               const { error: testInsertError } = await supabase
                 .from('users')
@@ -90,9 +106,9 @@ export default function UsersPage() {
       }
     };
     
-    checkDatabaseState();
+    checkDatabasePolicies();
     fetchUsers();
-  }, []);
+  }, [user]);
 
   const filteredUsers = users.filter((user) => {
     return (

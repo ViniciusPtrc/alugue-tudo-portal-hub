@@ -76,6 +76,10 @@ export type Database = {
           status: string
         }[]
       }
+      is_first_user: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       update_user: {
         Args: {
           user_id: string

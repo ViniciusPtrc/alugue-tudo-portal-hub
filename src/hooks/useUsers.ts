@@ -47,6 +47,14 @@ export const useUsers = () => {
         role: user.role
       });
       
+      // Verificar se existe pelo menos um usuário no sistema (primeiro usuário)
+      const { count, error: countError } = await supabase
+        .from('users')
+        .select('*', { count: 'exact', head: true });
+      
+      const isFirstUser = count === 0;
+      console.log("É o primeiro usuário?", isFirstUser);
+      
       // 1. Cadastro do usuário no sistema de autenticação
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: user.email,
@@ -100,7 +108,33 @@ export const useUsers = () => {
         console.error("Exceção ao inserir diretamente:", insertError);
       }
       
-      // 3. Segunda tentativa: criar o perfil usando a função create_user_profile
+      // 3. Segunda tentativa: usar a função anônima para inserir o primeiro usuário
+      if (!profileCreated && isFirstUser) {
+        try {
+          console.log("Tentando inserir como primeiro usuário do sistema");
+          const { error: firstUserError } = await supabase
+            .from('users')
+            .insert({
+              id: data.user.id,
+              name: user.name,
+              email: user.email,
+              role: user.role,
+              status: user.status || 'ativo'
+            })
+            .select();
+            
+          if (firstUserError) {
+            console.error("Erro ao inserir como primeiro usuário:", firstUserError);
+          } else {
+            console.log("Perfil criado com sucesso como primeiro usuário");
+            profileCreated = true;
+          }
+        } catch (firstUserError: any) {
+          console.error("Exceção ao inserir como primeiro usuário:", firstUserError);
+        }
+      }
+      
+      // 4. Terceira tentativa: criar o perfil usando a função create_user_profile
       if (!profileCreated) {
         try {
           console.log("Tentando criar perfil com dados:", {
@@ -130,7 +164,7 @@ export const useUsers = () => {
         }
       }
       
-      // 4. Terceira tentativa: criar perfil via create_new_auth_user
+      // 5. Quarta tentativa: criar perfil via create_new_auth_user
       if (!profileCreated) {
         try {
           console.log("Tentando criar perfil completo via create_new_auth_user");
@@ -153,12 +187,26 @@ export const useUsers = () => {
         }
       }
 
-      // 5. Verificar se o perfil foi criado com sucesso
+      // 6. Verificar se o perfil foi criado com sucesso
       if (profileCreated) {
         toast.success("Usuário adicionado com sucesso!");
         await fetchUsers();
         return true;
       } else {
+        // Verificar uma última vez se o perfil realmente não foi criado
+        const { data: checkProfile } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+          
+        if (checkProfile) {
+          console.log("Perfil existe após verificação final:", checkProfile);
+          toast.success("Usuário adicionado com sucesso!");
+          await fetchUsers();
+          return true;
+        }
+        
         toast.error("Usuário foi criado, mas o perfil não pôde ser completado. Por favor, contate o administrador.");
         return false;
       }
