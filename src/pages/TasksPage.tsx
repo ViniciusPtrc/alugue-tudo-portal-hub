@@ -124,6 +124,7 @@ export default function TasksPage() {
   };
 
   const handleEditTask = (task: Task) => {
+    // Ensure the task.due_date is always a string when editing
     setNewTask({
       ...task
     });

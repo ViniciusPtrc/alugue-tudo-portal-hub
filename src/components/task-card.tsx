@@ -12,7 +12,7 @@ export interface Task {
   title: string;
   description?: string;
   status: TaskStatus;
-  due_date?: string | Date;
+  due_date?: string; // Changed from "string | Date" to just "string"
   sector?: string;
   created_by: string;
   priority?: "baixa" | "media" | "alta";
@@ -34,7 +34,7 @@ export function TaskCard({
   className,
 }: TaskCardProps) {
   // Função para formatar a data
-  const formatDate = (date?: string | Date) => {
+  const formatDate = (date?: string) => {
     if (!date) return "";
     return new Date(date).toLocaleDateString("pt-BR");
   };
