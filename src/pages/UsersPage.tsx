@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Header } from "@/components/header";
 import { 
@@ -280,7 +279,11 @@ export default function UsersPage() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Header user={user} />
+      <Header user={{
+        name: user?.user_metadata?.name || "",
+        email: user?.email || "",
+        role: user?.user_metadata?.role || []
+      }} />
       <div className="flex-1 p-4 md:p-6">
         <div className="max-w-7xl mx-auto space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

@@ -132,7 +132,7 @@ export function AppSidebar({ className, userRole = [] }: AppSidebarProps) {
     
     const hasPermission = !item.role || 
       isAdmin || 
-      (item.role && roles.some(role => 
+      (item.role && Array.isArray(roles) && roles.some(role => 
         Array.isArray(item.role) 
           ? item.role.includes(role) 
           : item.role === role
