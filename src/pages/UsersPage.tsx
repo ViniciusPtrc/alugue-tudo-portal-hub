@@ -9,6 +9,8 @@ import { UsersHeader } from "@/components/users/UsersHeader";
 import { UsersContent } from "@/components/users/UsersContent";
 import { useUsersPage } from "@/hooks/users/useUsersPage";
 import { useUserValidation } from "@/hooks/users/useUserValidation";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { ShieldAlert } from "lucide-react";
 
 export default function UsersPage() {
   const { user } = useAuth();
@@ -34,11 +36,13 @@ export default function UsersPage() {
     handleDeleteUser
   } = useUsersPage();
 
+  // Verificar se o usuário é admin
+  const userRoles = user?.user_metadata?.role || [];
+  const isAdmin = Array.isArray(userRoles) && userRoles.includes('admin');
+
   useEffect(() => {
     console.log("User metadata:", user?.user_metadata);
-    const userRoles = user?.user_metadata?.role || [];
     console.log("User roles:", userRoles);
-    const isAdmin = userRoles.includes('admin');
     console.log("Is admin:", isAdmin);
     
     if (!isAdmin) {
@@ -58,7 +62,7 @@ export default function UsersPage() {
     };
     
     loadUsers();
-  }, [user, fetchUsers]);
+  }, [user, fetchUsers, isAdmin]);
 
   const handleUserSave = async (user, selectedRoles) => {
     if (!validateUserForm(user, selectedRoles)) {
@@ -94,6 +98,16 @@ export default function UsersPage() {
       
       <div className="flex-1 p-4 md:p-6">
         <div className="max-w-7xl mx-auto space-y-6">
+          {!isAdmin && (
+            <Alert variant="destructive">
+              <ShieldAlert className="h-4 w-4" />
+              <AlertTitle>Acesso negado</AlertTitle>
+              <AlertDescription>
+                Apenas administradores podem acessar esta página.
+              </AlertDescription>
+            </Alert>
+          )}
+
           <UsersHeader 
             onAddUser={handleAddUser} 
             isLoading={isLoading} 

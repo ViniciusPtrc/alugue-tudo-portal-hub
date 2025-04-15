@@ -12,6 +12,20 @@ export const useFetchUsers = () => {
       setIsLoading(true);
       console.log("Iniciando busca de usuários...");
       
+      // Verificar se o usuário atual tem papel de admin
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      
+      if (!currentUser || !currentUser.user_metadata || 
+          !currentUser.user_metadata.role || 
+          !Array.isArray(currentUser.user_metadata.role) || 
+          !currentUser.user_metadata.role.includes('admin')) {
+        console.error("Usuário não é administrador");
+        toast.error("Permissão negada: apenas administradores podem listar usuários");
+        setUsers([]);
+        setIsLoading(false);
+        return;
+      }
+      
       // Chamando a função RPC get_all_users criada com SECURITY DEFINER
       const { data: users, error } = await supabase
         .rpc('get_all_users');
