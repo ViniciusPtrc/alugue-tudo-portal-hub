@@ -47,23 +47,6 @@ export default function UsersPage() {
       return;
     }
     
-    const checkDatabaseConnection = async () => {
-      try {
-        const { data, error } = await supabase.from('users').select('count').limit(1);
-        
-        if (error) {
-          console.error("Erro ao conectar ao banco de dados:", error);
-          toast.error("Problemas de conexão com o banco de dados");
-        } else {
-          console.log("Conexão com o banco de dados estabelecida");
-          loadUsers();
-        }
-      } catch (e) {
-        console.error("Exceção ao verificar conexão:", e);
-        toast.error("Erro ao estabelecer conexão com o banco de dados");
-      }
-    };
-    
     const loadUsers = async () => {
       try {
         console.log("Iniciando carregamento de usuários");
@@ -75,7 +58,7 @@ export default function UsersPage() {
       }
     };
     
-    checkDatabaseConnection();
+    loadUsers();
   }, [user, fetchUsers]);
 
   const handleUserSave = async (user, selectedRoles) => {
