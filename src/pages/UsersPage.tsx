@@ -1,33 +1,40 @@
-import { useState, useEffect } from "react";
+
+import { useEffect } from "react";
 import { Header } from "@/components/header";
-import { Button } from "@/components/ui/button";
-import { UserPlus } from "lucide-react";
 import { useAuth } from "@/App";
 import { toast } from "sonner";
-import { User } from "@/types/user";
-import { useUsers } from "@/hooks/useUsers";
+import { supabase } from "@/integrations/supabase/client";
 import { UserDialog } from "@/components/users/UserDialog";
 import { DeleteConfirmDialog } from "@/components/users/DeleteConfirmDialog";
-import { UserTable } from "@/components/users/UserTable";
-import { UserSearch } from "@/components/users/UserSearch";
-import { supabase } from "@/integrations/supabase/client";
+import { UsersHeader } from "@/components/users/UsersHeader";
+import { UsersContent } from "@/components/users/UsersContent";
+import { useUsersPage } from "@/hooks/users/useUsersPage";
+import { useUserValidation } from "@/hooks/users/useUserValidation";
 
 export default function UsersPage() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [openUserDialog, setOpenUserDialog] = useState(false);
-  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
-  const [userToEdit, setUserToEdit] = useState<Partial<User>>({
-    name: "",
-    email: "",
-    password: "",
-    role: [],
-    status: "ativo",
-  });
-  const [userToDelete, setUserToDelete] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
   const { user } = useAuth();
-  const { users, isLoading, fetchUsers, createUser, updateUser, deleteUser } = useUsers();
+  const { validateUserForm, showSuccessToast } = useUserValidation();
   
+  const {
+    searchQuery,
+    setSearchQuery,
+    openUserDialog,
+    setOpenUserDialog,
+    openDeleteDialog,
+    setOpenDeleteDialog,
+    userToEdit,
+    isDeleting,
+    users,
+    filteredUsers,
+    isLoading,
+    fetchUsers,
+    handleAddUser,
+    handleEditUser,
+    handleSaveUser,
+    confirmDeleteUser,
+    handleDeleteUser
+  } = useUsersPage();
+
   useEffect(() => {
     console.log("User metadata:", user?.user_metadata);
     const userRoles = user?.user_metadata?.role || [];
@@ -39,17 +46,6 @@ export default function UsersPage() {
       toast.error("Permissão negada para acessar usuários");
       return;
     }
-    
-    const loadUsers = async () => {
-      try {
-        console.log("Iniciando carregamento de usuários");
-        await fetchUsers();
-        console.log("Usuários carregados com sucesso");
-      } catch (error) {
-        console.error("Erro ao carregar usuários:", error);
-        toast.error("Falha ao carregar lista de usuários");
-      }
-    };
     
     const checkDatabaseConnection = async () => {
       try {
@@ -68,93 +64,37 @@ export default function UsersPage() {
       }
     };
     
+    const loadUsers = async () => {
+      try {
+        console.log("Iniciando carregamento de usuários");
+        await fetchUsers();
+        console.log("Usuários carregados com sucesso");
+      } catch (error) {
+        console.error("Erro ao carregar usuários:", error);
+        toast.error("Falha ao carregar lista de usuários");
+      }
+    };
+    
     checkDatabaseConnection();
-  }, [user]);
+  }, [user, fetchUsers]);
 
-  const filteredUsers = users.filter((user) => {
-    return (
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  });
-
-  const handleAddUser = () => {
-    setUserToEdit({
-      name: "",
-      email: "",
-      password: "",
-      role: [],
-      status: "ativo",
-    });
-    setOpenUserDialog(true);
-  };
-
-  const handleEditUser = (user: User) => {
-    setUserToEdit({ ...user, password: "" });
-    setOpenUserDialog(true);
-  };
-
-  const handleSaveUser = async (user: Partial<User>, selectedRoles: string[]) => {
-    if (!user.name || !user.email) {
-      toast.error("Nome e e-mail são obrigatórios");
+  const handleUserSave = async (user, selectedRoles) => {
+    if (!validateUserForm(user, selectedRoles)) {
       return;
     }
-
-    if (!user.id && (!user.password || user.password === "")) {
-      toast.error("Senha é obrigatória para novos usuários");
-      return;
-    }
-
-    if (selectedRoles.length === 0) {
-      toast.error("Selecione pelo menos um papel/função");
-      return;
-    }
-
-    const success = user.id 
-      ? await updateUser({ ...user, role: selectedRoles })
-      : await createUser({ ...user, role: selectedRoles });
+    
+    const success = await handleSaveUser(user, selectedRoles);
     
     if (success) {
-      setOpenUserDialog(false);
-      await fetchUsers();
+      showSuccessToast(user.id ? "Usuário atualizado com sucesso!" : "Usuário criado com sucesso!");
     }
   };
 
-  const confirmDeleteUser = (id: string) => {
-    setUserToDelete(id);
-    setOpenDeleteDialog(true);
-  };
-
-  const handleDeleteUser = async () => {
-    if (!userToDelete) {
-      setOpenDeleteDialog(false);
-      return;
-    }
+  const handleUserDelete = async () => {
+    const success = await handleDeleteUser();
     
-    try {
-      setIsDeleting(true);
-      
-      const idToDelete = userToDelete;
-      
-      const success = await deleteUser(idToDelete);
-      
-      setUserToDelete(null);
-      
-      setTimeout(() => {
-        setOpenDeleteDialog(false);
-        
-        if (success) {
-          toast.success("Usuário excluído com sucesso!");
-        }
-      }, 100);
-    } catch (error) {
-      console.error("Error deleting user:", error);
-      toast.error("Ocorreu um erro inesperado ao excluir o usuário");
-      
-      setUserToDelete(null);
-      setTimeout(() => setOpenDeleteDialog(false), 100);
-    } finally {
-      setIsDeleting(false);
+    if (success) {
+      showSuccessToast("Usuário excluído com sucesso!");
     }
   };
 
@@ -165,36 +105,23 @@ export default function UsersPage() {
         email: user?.email || "",
         role: user?.user_metadata?.role || []
       }} />
+      
       <div className="flex-1 p-4 md:p-6">
         <div className="max-w-7xl mx-auto space-y-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">Gerenciar Usuários</h1>
-              <p className="text-muted-foreground">
-                Adicione, edite e remova usuários do sistema.
-              </p>
-            </div>
-            <Button onClick={handleAddUser} disabled={isLoading || isDeleting}>
-              <UserPlus className="h-4 w-4 mr-2" />
-              Novo Usuário
-            </Button>
-          </div>
+          <UsersHeader 
+            onAddUser={handleAddUser} 
+            isLoading={isLoading} 
+          />
 
-          <div className="bg-card rounded-lg border shadow-sm p-6">
-            <UserSearch 
-              searchQuery={searchQuery} 
-              setSearchQuery={setSearchQuery} 
-              totalUsers={users.length} 
-            />
-            
-            <UserTable 
-              users={users}
-              filteredUsers={filteredUsers}
-              isLoading={isLoading}
-              onEdit={handleEditUser}
-              onDelete={confirmDeleteUser}
-            />
-          </div>
+          <UsersContent 
+            users={users}
+            filteredUsers={filteredUsers}
+            isLoading={isLoading}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            onEditUser={handleEditUser}
+            onDeleteUser={confirmDeleteUser}
+          />
         </div>
       </div>
 
@@ -203,13 +130,13 @@ export default function UsersPage() {
         onOpenChange={setOpenUserDialog}
         userToEdit={userToEdit}
         isLoading={isLoading}
-        onSave={handleSaveUser}
+        onSave={handleUserSave}
       />
 
       <DeleteConfirmDialog 
         open={openDeleteDialog}
         onOpenChange={setOpenDeleteDialog}
-        onConfirm={handleDeleteUser}
+        onConfirm={handleUserDelete}
         isLoading={isDeleting || isLoading}
       />
     </div>
