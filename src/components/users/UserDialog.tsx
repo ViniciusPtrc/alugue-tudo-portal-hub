@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff, ShieldAlert } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
 
 interface UserDialogProps {
   open: boolean;
@@ -20,12 +21,14 @@ export function UserDialog({ open, onOpenChange, userToEdit, isLoading, onSave }
   const [user, setUser] = useState<Partial<User>>(userToEdit);
   const [selectedRoles, setSelectedRoles] = useState<string[]>(userToEdit.role || []);
   const [showPassword, setShowPassword] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   // Sincroniza o estado local quando as props mudam
   useEffect(() => {
     if (open) {
       setUser(userToEdit);
       setSelectedRoles(userToEdit.role || []);
+      setSaving(false);
     }
   }, [userToEdit, open]);
 
@@ -41,8 +44,42 @@ export function UserDialog({ open, onOpenChange, userToEdit, isLoading, onSave }
     setShowPassword(!showPassword);
   };
 
-  const handleSave = () => {
-    onSave({ ...user, role: selectedRoles }, selectedRoles);
+  const validateForm = () => {
+    if (!user.name || user.name.trim() === "") {
+      toast.error("O nome é obrigatório");
+      return false;
+    }
+
+    if (!user.email || user.email.trim() === "") {
+      toast.error("O e-mail é obrigatório");
+      return false;
+    }
+
+    if (!user.id && (!user.password || user.password.trim() === "")) {
+      toast.error("A senha é obrigatória para novos usuários");
+      return false;
+    }
+
+    if (selectedRoles.length === 0) {
+      toast.error("Selecione pelo menos um papel/função");
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleSave = async () => {
+    if (!validateForm()) return;
+    
+    try {
+      setSaving(true);
+      await onSave({ ...user, role: selectedRoles }, selectedRoles);
+    } catch (error) {
+      console.error("Erro ao salvar usuário:", error);
+      toast.error("Ocorreu um erro ao salvar o usuário. Tente novamente.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -68,7 +105,7 @@ export function UserDialog({ open, onOpenChange, userToEdit, isLoading, onSave }
               value={user.name || ""}
               onChange={(e) => setUser({ ...user, name: e.target.value })}
               className="col-span-3"
-              disabled={isLoading}
+              disabled={isLoading || saving}
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
@@ -81,7 +118,7 @@ export function UserDialog({ open, onOpenChange, userToEdit, isLoading, onSave }
               value={user.email || ""}
               onChange={(e) => setUser({ ...user, email: e.target.value })}
               className="col-span-3"
-              disabled={isLoading}
+              disabled={isLoading || saving}
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
@@ -96,7 +133,7 @@ export function UserDialog({ open, onOpenChange, userToEdit, isLoading, onSave }
                 onChange={(e) => setUser({ ...user, password: e.target.value })}
                 className="pr-10"
                 placeholder={user.id ? "Mantenha vazio para não alterar" : "Digite a senha"}
-                disabled={isLoading}
+                disabled={isLoading || saving}
               />
               <Button
                 type="button"
@@ -104,7 +141,7 @@ export function UserDialog({ open, onOpenChange, userToEdit, isLoading, onSave }
                 size="icon"
                 className="absolute right-0 top-0 h-full"
                 onClick={toggleShowPassword}
-                disabled={isLoading}
+                disabled={isLoading || saving}
               >
                 {showPassword ? (
                   <EyeOff className="h-4 w-4" />
@@ -127,7 +164,7 @@ export function UserDialog({ open, onOpenChange, userToEdit, isLoading, onSave }
                     checked={selectedRoles.includes(role.id)}
                     onChange={() => toggleRole(role.id)}
                     className="h-4 w-4"
-                    disabled={isLoading}
+                    disabled={isLoading || saving}
                   />
                   <Label htmlFor={`role-${role.id}`}>
                     {role.id === "admin" && (
@@ -148,7 +185,7 @@ export function UserDialog({ open, onOpenChange, userToEdit, isLoading, onSave }
             <Select
               value={user.status || "ativo"}
               onValueChange={(value) => setUser({ ...user, status: value as "ativo" | "inativo" })}
-              disabled={isLoading}
+              disabled={isLoading || saving}
             >
               <SelectTrigger className="col-span-3">
                 <SelectValue placeholder="Status do usuário" />
@@ -161,11 +198,11 @@ export function UserDialog({ open, onOpenChange, userToEdit, isLoading, onSave }
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading || saving}>
             Cancelar
           </Button>
-          <Button onClick={handleSave} disabled={isLoading}>
-            {isLoading ? "Salvando..." : user.id ? "Atualizar" : "Adicionar"}
+          <Button onClick={handleSave} disabled={isLoading || saving}>
+            {isLoading || saving ? "Salvando..." : user.id ? "Atualizar" : "Adicionar"}
           </Button>
         </DialogFooter>
       </DialogContent>

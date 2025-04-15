@@ -24,7 +24,7 @@ export const useCreateUser = () => {
         role: user.role
       });
       
-      // Primeira tentativa: usar create_new_auth_user function - mantém a sessão atual
+      // Tentativa principal: usar create_new_auth_user function - mantém a sessão atual
       const { data: newUser, error: createError } = await supabase.rpc('create_new_auth_user', {
         email: user.email,
         password: user.password || '',
@@ -43,16 +43,39 @@ export const useCreateUser = () => {
       if (createError) {
         console.error("Erro ao criar usuário via RPC:", createError);
         toast.error("Erro ao criar usuário: " + createError.message);
+        
+        // Se o erro mencionar "password" da tabela "users", é porque estamos tentando
+        // salvar a senha no lugar errado
+        if (createError.message.includes('password') && createError.message.includes('users')) {
+          console.log("Tentando método alternativo devido ao erro de coluna password");
+          
+          // Vamos tentar criar o usuário diretamente no auth sem tocar na tabela users
+          const alternativeCreate = await createUserWithoutPasswordColumn(user);
+          return alternativeCreate;
+        }
+        
         return false;
       }
       
-      // Segunda tentativa: signUp sem login automático
-      let userId = null;
-      let profileCreated = false;
+      return false;
+    } catch (error: any) {
+      console.error("Exceção ao salvar usuário:", error);
+      toast.error("Erro ao salvar usuário: " + error.message);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Método alternativo para criar usuário sem depender da coluna password na tabela users
+  const createUserWithoutPasswordColumn = async (user: Partial<User>) => {
+    try {
+      console.log("Usando método alternativo para criar usuário");
       
       // Capturar a sessão atual antes do signUp
       const { data: { session: currentSession } } = await supabase.auth.getSession();
       
+      // Criar o usuário no auth
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: user.email,
         password: user.password,
@@ -62,7 +85,6 @@ export const useCreateUser = () => {
             role: user.role,
             status: user.status || 'ativo'
           },
-          // Crucial: isso evita o login automático após o cadastro
           emailRedirectTo: window.location.origin + '/login'
         }
       });
@@ -79,7 +101,7 @@ export const useCreateUser = () => {
         return false;
       }
       
-      userId = data.user.id;
+      const userId = data.user.id;
       console.log("Usuário criado com sucesso no auth, ID:", userId);
       
       // Restaurar a sessão do admin usando a sessão que capturamos antes do signUp
@@ -98,81 +120,46 @@ export const useCreateUser = () => {
       
       if (!restoredSession) {
         console.warn("Sessão do admin perdida após signUp. Tentando restaurar...");
-        
-        // Se chegarmos aqui, o admin foi deslogado. Mostrar toast com instruções para login
         toast.error("Sua sessão expirou durante a criação do usuário. Por favor, faça login novamente.");
-        
-        // Redirecionar para login após um breve atraso para o toast ser visualizado
         setTimeout(() => {
           window.location.href = '/login';
         }, 2000);
-        
         return false;
       }
       
-      // Criar o perfil do usuário usando a função create_user_profile
+      // Criar o perfil do usuário sem a coluna password
       try {
-        console.log("Criando perfil do usuário via função create_user_profile");
+        console.log("Criando perfil do usuário na tabela users sem a coluna password");
         
-        const { error: profileError } = await supabase.rpc('create_user_profile', {
-          user_id: userId,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          status: user.status || 'ativo'
-        });
-
-        if (profileError) {
-          console.error("Erro ao criar perfil via RPC:", profileError);
+        const { error: insertError } = await supabase
+          .from('users')
+          .insert({
+            id: userId,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            status: user.status || 'ativo'
+          });
           
-          // Tentativa alternativa: inserir diretamente na tabela users
-          try {
-            console.log("Tentando inserir dados no perfil do usuário via tabela users");
-            const { error: insertError } = await supabase
-              .from('users')
-              .insert({
-                id: userId,
-                name: user.name,
-                email: user.email,
-                role: user.role,
-                status: user.status || 'ativo'
-              });
-              
-            if (insertError) {
-              console.error("Erro ao inserir diretamente na tabela users:", insertError);
-              toast.error("Erro ao criar perfil: " + insertError.message);
-            } else {
-              console.log("Perfil criado com sucesso via insert direto");
-              profileCreated = true;
-            }
-          } catch (insertError: any) {
-            console.error("Exceção ao inserir diretamente:", insertError);
-            toast.error("Erro ao criar perfil: " + insertError.message);
-          }
+        if (insertError) {
+          console.error("Erro ao inserir na tabela users:", insertError);
+          toast.error("Erro ao criar perfil: " + insertError.message);
+          return false;
         } else {
-          console.log("Perfil criado com sucesso via RPC create_user_profile");
-          profileCreated = true;
+          console.log("Perfil criado com sucesso");
+          toast.success("Usuário adicionado com sucesso!");
+          await fetchUsers();
+          return true;
         }
-      } catch (profileError: any) {
-        console.error("Exceção ao criar perfil via RPC:", profileError);
-        toast.error("Erro ao criar perfil: " + profileError.message);
-      }
-      
-      // Verificação final do perfil
-      if (profileCreated) {
-        toast.success("Usuário adicionado com sucesso!");
-        await fetchUsers();
-        return true;
-      } else {
-        toast.error("Usuário foi criado, mas o perfil pode não estar completo.");
+      } catch (insertError: any) {
+        console.error("Exceção ao inserir diretamente:", insertError);
+        toast.error("Erro ao criar perfil: " + insertError.message);
         return false;
       }
     } catch (error: any) {
-      console.error("Exceção ao salvar usuário:", error);
+      console.error("Exceção no método alternativo:", error);
       toast.error("Erro ao salvar usuário: " + error.message);
       return false;
-    } finally {
-      setIsLoading(false);
     }
   };
 
