@@ -15,6 +15,8 @@ interface UserTableProps {
 }
 
 export function UserTable({ users, filteredUsers, isLoading, onEdit, onDelete }: UserTableProps) {
+  console.log("UserTable rendered with:", { users, filteredUsers, isLoading });
+  
   return (
     <div className="rounded-md border">
       <Table>
@@ -48,7 +50,7 @@ export function UserTable({ users, filteredUsers, isLoading, onEdit, onDelete }:
                 <TableCell>{user.email}</TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-1">
-                    {user.role.map((role) => (
+                    {Array.isArray(user.role) && user.role.map((role) => (
                       <Badge key={role} variant={role === "admin" ? "default" : "secondary"} className="text-xs">
                         {availableRoles.find(r => r.id === role)?.label || role}
                       </Badge>

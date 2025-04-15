@@ -27,9 +27,13 @@ export const useFetchUsers = () => {
         return;
       }
       
+      console.log("User is admin, fetching users...");
+      
       // Chamando a função RPC get_all_users criada com SECURITY DEFINER
       const { data: users, error } = await supabase
         .rpc('get_all_users');
+      
+      console.log("RPC response:", { users, error });
         
       if (error) {
         console.error("Erro ao buscar usuários:", error);
@@ -39,7 +43,7 @@ export const useFetchUsers = () => {
       }
       
       if (users && users.length > 0) {
-        console.log(`Encontrados ${users.length} usuários`);
+        console.log(`Encontrados ${users.length} usuários:`, users);
         setUsers(users as User[]);
       } else {
         console.log("Nenhum usuário encontrado");

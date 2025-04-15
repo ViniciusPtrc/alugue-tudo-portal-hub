@@ -55,6 +55,7 @@ export default function UsersPage() {
         console.log("Iniciando carregamento de usuários");
         await fetchUsers();
         console.log("Usuários carregados com sucesso");
+        console.log("Users state after fetching:", users);
       } catch (error) {
         console.error("Erro ao carregar usuários:", error);
         toast.error("Falha ao carregar lista de usuários");
@@ -63,6 +64,13 @@ export default function UsersPage() {
     
     loadUsers();
   }, [user, fetchUsers, isAdmin]);
+
+  // Add this for debugging
+  useEffect(() => {
+    console.log("Current users in state:", users);
+    console.log("Filtered users:", filteredUsers);
+    console.log("Is loading:", isLoading);
+  }, [users, filteredUsers, isLoading]);
 
   const handleUserSave = async (user, selectedRoles) => {
     if (!validateUserForm(user, selectedRoles)) {

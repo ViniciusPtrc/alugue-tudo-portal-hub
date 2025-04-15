@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { User } from "@/types/user";
 import { useUsers } from "@/hooks/useUsers";
 
@@ -18,6 +18,10 @@ export const useUsersPage = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   
   const { users, isLoading, fetchUsers, createUser, updateUser, deleteUser } = useUsers();
+
+  useEffect(() => {
+    console.log("useUsersPage - users state updated:", users);
+  }, [users]);
 
   const filteredUsers = users.filter((user) => {
     return (
