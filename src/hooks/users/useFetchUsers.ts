@@ -15,10 +15,11 @@ export const useFetchUsers = () => {
       // Verificar se o usuário atual tem papel de admin
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       
-      if (!currentUser || !currentUser.user_metadata || 
-          !currentUser.user_metadata.role || 
-          !Array.isArray(currentUser.user_metadata.role) || 
-          !currentUser.user_metadata.role.includes('admin')) {
+      // Verify user roles more robustly
+      const userRoles = currentUser?.user_metadata?.role || [];
+      const isAdmin = Array.isArray(userRoles) && userRoles.includes('admin');
+      
+      if (!isAdmin) {
         console.error("Usuário não é administrador");
         toast.error("Permissão negada: apenas administradores podem listar usuários");
         setUsers([]);
