@@ -12,7 +12,7 @@ export const useFetchUsers = () => {
       setIsLoading(true);
       console.log("Iniciando busca de usuários...");
       
-      // Primeira tentativa: usar a função RPC get_all_users
+      // Usando a função RPC get_all_users atualizada
       const { data: rpcData, error: rpcError } = await supabase
         .rpc('get_all_users');
         
@@ -25,7 +25,7 @@ export const useFetchUsers = () => {
       if (rpcError) {
         console.error("Erro ao buscar usuários via RPC:", rpcError);
         
-        // Segunda tentativa: buscar diretamente da tabela users
+        // Tentativa alternativa: buscar diretamente da tabela users
         console.log("Tentando buscar usuários diretamente da tabela...");
         const { data: tableData, error: tableError } = await supabase
           .from('users')
@@ -54,21 +54,7 @@ export const useFetchUsers = () => {
       
       if (user) {
         console.log("Usuário atual encontrado:", user.id);
-        
-        // Terceira tentativa: Verificar se o próprio usuário atual existe na tabela
-        const { data: currentUserData, error: currentUserError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-          
-        if (!currentUserError && currentUserData) {
-          console.log("Perfil do usuário atual encontrado na tabela users");
-          setUsers([currentUserData as User]);
-        } else {
-          console.error("Erro ao buscar perfil do usuário atual:", currentUserError);
-          setUsers([]);
-        }
+        setUsers([]);
       } else {
         console.log("Nenhum usuário autenticado encontrado");
         setUsers([]);
