@@ -3,7 +3,6 @@ import { useEffect } from "react";
 import { Header } from "@/components/header";
 import { useAuth } from "@/App";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { UserDialog } from "@/components/users/UserDialog";
 import { DeleteConfirmDialog } from "@/components/users/DeleteConfirmDialog";
 import { UsersHeader } from "@/components/users/UsersHeader";
@@ -70,6 +69,8 @@ export default function UsersPage() {
     
     if (success) {
       showSuccessToast(user.id ? "Usuário atualizado com sucesso!" : "Usuário criado com sucesso!");
+      // Recarregar a lista após salvar com sucesso
+      fetchUsers();
     }
   };
 
@@ -78,6 +79,8 @@ export default function UsersPage() {
     
     if (success) {
       showSuccessToast("Usuário excluído com sucesso!");
+      // Recarregar a lista após excluir com sucesso
+      fetchUsers();
     }
   };
 

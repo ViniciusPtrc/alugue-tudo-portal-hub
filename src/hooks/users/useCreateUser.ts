@@ -42,6 +42,8 @@ export const useCreateUser = () => {
       
       if (createError) {
         console.error("Erro ao criar usuário via RPC:", createError);
+        toast.error("Erro ao criar usuário: " + createError.message);
+        return false;
       }
       
       // Segunda tentativa: signUp sem login automático
@@ -138,12 +140,14 @@ export const useCreateUser = () => {
               
             if (insertError) {
               console.error("Erro ao inserir diretamente na tabela users:", insertError);
+              toast.error("Erro ao criar perfil: " + insertError.message);
             } else {
               console.log("Perfil criado com sucesso via insert direto");
               profileCreated = true;
             }
           } catch (insertError: any) {
             console.error("Exceção ao inserir diretamente:", insertError);
+            toast.error("Erro ao criar perfil: " + insertError.message);
           }
         } else {
           console.log("Perfil criado com sucesso via RPC create_user_profile");
@@ -151,6 +155,7 @@ export const useCreateUser = () => {
         }
       } catch (profileError: any) {
         console.error("Exceção ao criar perfil via RPC:", profileError);
+        toast.error("Erro ao criar perfil: " + profileError.message);
       }
       
       // Verificação final do perfil
